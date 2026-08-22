@@ -49,26 +49,24 @@ const userSchema = new mongoose.Schema(
 );
 
 // Password Hashing
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   // Only hash the password if it is new or has been modified
-  if (!this.isModified("Password")) return next();
+  if (!this.isModified("Password")) return;
 
   // Hash the password with cost of 12
   this.Password = await bcrypt.hash(this.Password, 12);
 
   // Delete ConfirmPassword field
   this.ConfirmPassword = undefined;
-  next();
 });
 
 // Password Changed At
-userSchema.pre("save", function (next) {
+userSchema.pre("save", function () {
   // Only run this function if password was actually modified
-  if (!this.isModified("Password") || this.isNew) return next();
+  if (!this.isModified("Password") || this.isNew) return;
 
   // Subtract 1 second to make sure the token is always created after the password has been changed
   this.passwordChangedAt = Date.now() - 1000;
-  next();
 });
 
 // Instance method

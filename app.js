@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 // ROUTES
 
 app.get("/", (req, res) => {
-  res.send("Portfolio API is running...");
+  res.send("DevsParkLabs Website Backend is running...");
 });
 
 app.use((req, res, next) => {

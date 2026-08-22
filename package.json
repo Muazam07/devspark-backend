@@ -1,7 +1,7 @@
 {
   "name": "devspark-backend",
   "version": "1.0.0",
-  "description": "Devspark Labs Backend",
+  "description": "DevsParkLabs Website Backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

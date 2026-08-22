@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+require("colors");
 require("dotenv").config();
 // Custom Imports
 const app = require("./app");

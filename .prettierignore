@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+# Build output
+/dist
+build
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Env files
+.env
+.env.*
+
+# Generated / cache
+*.min.js
+.cache
+
+# Misc
+*.md
+!.prettierrc

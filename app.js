@@ -4,6 +4,7 @@ const cors = require("cors");
 // Custom Imports
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./utils/globalErrorHandler");
+const userRouter = require("./routes/userRoutes");
 
 const corsOptions = {
   origin: "*",
@@ -33,6 +34,8 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => {
   res.send("DevsParkLabs Website Backend is running...");
 });
+
+app.use("/api/v1/users", userRouter);
 
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));

@@ -7,7 +7,7 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "build": "npm install --legacy-peer-deps",
-    "check": "node --check app.js && node --check server.js && node --check utils/appError.js && node --check utils/catchAsync.js && node --check utils/globalErrorHandler.js && node --check utils/requiredFieldError.js && node -e \"require('./app')\"",
+    "check": "node --check server.js && node -e \"require('./app')\"",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

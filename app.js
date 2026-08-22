@@ -1,7 +1,6 @@
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
-require("dotenv").config();
 // Custom Imports
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./utils/globalErrorHandler");

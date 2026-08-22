@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 require("colors");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 // Custom Imports
 const app = require("./app");
 

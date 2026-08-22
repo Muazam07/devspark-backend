@@ -5,36 +5,36 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
-    FirstName: {
+    firstName: {
       type: String,
       minlength: 2,
       required: [true, "Please tell us your first name"],
     },
-    LastName: {
+    lastName: {
       type: String,
       minlength: 2,
       required: [true, "Please tell us your last name"],
     },
-    Email: {
+    email: {
       type: String,
       unique: true,
       lowercase: true,
       required: [true, "Please provide your email"],
       validate: [validator.isEmail, "Please provide a valid email"],
     },
-    Password: {
+    password: {
       type: String,
       minlength: 8,
       required: [true, "Please provide a password"],
       select: false,
     },
-    ConfirmPassword: {
+    confirmPassword: {
       type: String,
       required: [true, "Please confirm your password"],
       // This only works on CREATE and SAVE!!!
       validate: {
         validator: function (el) {
-          return el === this.Password;
+          return el === this.password;
         },
         message: "Passwords are not the same!",
       },
@@ -51,19 +51,19 @@ const userSchema = new mongoose.Schema(
 // Password Hashing
 userSchema.pre("save", async function () {
   // Only hash the password if it is new or has been modified
-  if (!this.isModified("Password")) return;
+  if (!this.isModified("password")) return;
 
   // Hash the password with cost of 12
-  this.Password = await bcrypt.hash(this.Password, 12);
+  this.password = await bcrypt.hash(this.password, 12);
 
-  // Delete ConfirmPassword field
-  this.ConfirmPassword = undefined;
+  // Delete confirmPassword field
+  this.confirmPassword = undefined;
 });
 
 // Password Changed At
 userSchema.pre("save", function () {
   // Only run this function if password was actually modified
-  if (!this.isModified("Password") || this.isNew) return;
+  if (!this.isModified("password") || this.isNew) return;
 
   // Subtract 1 second to make sure the token is always created after the password has been changed
   this.passwordChangedAt = Date.now() - 1000;

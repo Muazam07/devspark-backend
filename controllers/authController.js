@@ -18,7 +18,7 @@ const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
 
   // Remove password from output
-  user.Password = undefined;
+  user.password = undefined;
 
   res.status(statusCode).json({
     status: "success",
@@ -31,28 +31,28 @@ const createSendToken = (user, statusCode, res) => {
 
 exports.signup = catchAsync(async (req, res, next) => {
   const newUser = await User.create({
-    FirstName: req.body.FirstName,
-    LastName: req.body.LastName,
-    Email: req.body.Email,
-    Password: req.body.Password,
-    ConfirmPassword: req.body.ConfirmPassword,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    email: req.body.email,
+    password: req.body.password,
+    confirmPassword: req.body.confirmPassword,
   });
 
   createSendToken(newUser, 201, res);
 });
 
 exports.login = catchAsync(async (req, res, next) => {
-  const { Email, Password } = req.body;
+  const { email, password } = req.body;
 
   // 1) Check if email and password exist
-  if (!Email || !Password) {
+  if (!email || !password) {
     return next(new AppError("Please provide email and password", 400));
   }
 
   // 2) Check if user exists && password is correct
-  const user = await User.findOne({ Email }).select("+Password");
+  const user = await User.findOne({ email }).select("+password");
 
-  if (!user || !(await user.correctPassword(Password, user.Password))) {
+  if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
 
@@ -62,13 +62,13 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   // 1) Check if email exists
-  const { Email } = req.body;
-  if (!Email) {
+  const { email } = req.body;
+  if (!email) {
     return next(new AppError("Please provide email", 400));
   }
 
   // 2) Check if user exists
-  const user = await User.findOne({ Email });
+  const user = await User.findOne({ email });
   if (!user) {
     return next(new AppError("User not found", 404));
   }
@@ -86,7 +86,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     const subject = "Your password reset token (valid for 10 min)";
     const htmlContent = ResetPasswordTemplate(user, resetURL);
 
-    await sendEmail(user.Email, user.FirstName, subject, htmlContent);
+    await sendEmail(user.email, user.firstName, subject, htmlContent);
 
     res.status(200).json({
       status: "success",
@@ -123,8 +123,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   }
 
   // 3) Update changedPasswordAt property for the user
-  user.Password = req.body.Password;
-  user.ConfirmPassword = req.body.ConfirmPassword;
+  user.password = req.body.password;
+  user.confirmPassword = req.body.confirmPassword;
   user.passwordResetToken = undefined; // delete token
   user.passwordResetExpires = undefined; // delete token
   await user.save();
@@ -134,25 +134,25 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 });
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
-  const { CurrentPassword, NewPassword, NewConfirmPassword } = req.body;
+  const { currentPassword, newPassword, newConfirmPassword } = req.body;
 
   // 1) Check if current and new password are provided
-  if (!CurrentPassword || !NewPassword || !NewConfirmPassword) {
+  if (!currentPassword || !newPassword || !newConfirmPassword) {
     return next(
       new AppError("Please provide your current password and new password", 400)
     );
   }
 
   // 2) Check if user exists && current password is correct
-  const user = await User.findById(req.user._id).select("+Password");
+  const user = await User.findById(req.user._id).select("+password");
 
-  if (!user || !(await user.correctPassword(CurrentPassword, user.Password))) {
+  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
     return next(new AppError("Incorrect password", 401));
   }
 
   // 3) If everything ok, update password
-  user.Password = NewPassword;
-  user.ConfirmPassword = NewConfirmPassword;
+  user.password = newPassword;
+  user.confirmPassword = newConfirmPassword;
   await user.save();
 
   // 4) Log the user in, send JWT

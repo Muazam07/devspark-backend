@@ -13,11 +13,11 @@ exports.getMe = catchAsync(async (req, res, next) => {
 });
 
 exports.updateMe = catchAsync(async (req, res, next) => {
-  const { FirstName, LastName, Email } = req.body;
+  const { firstName, lastName, email } = req.body;
 
   const updatedUser = await User.findByIdAndUpdate(
     req.user._id,
-    { FirstName, LastName, Email },
+    { firstName, lastName, email },
     {
       new: true,
       runValidators: true,

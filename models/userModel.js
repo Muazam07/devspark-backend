@@ -5,6 +5,11 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
+    id: {
+      type: mongoose.Schema.Types.UUID, // stored as BSON Binary subtype 4
+      default: () => crypto.randomUUID(),
+      unique: true,
+    },
     firstName: {
       type: String,
       minlength: 2,

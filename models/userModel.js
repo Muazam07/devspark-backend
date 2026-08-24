@@ -3,6 +3,9 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
 
+// TESTING: 1 minute. Change to 10 * 60 * 1000 (10 minutes) later.
+const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 60 * 1000;
+
 const userSchema = new mongoose.Schema(
   {
     id: {
@@ -47,6 +50,16 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationCode: String,
+    emailVerificationExpires: Date,
   },
   {
     timestamps: true,
@@ -112,6 +125,25 @@ userSchema.methods.createPasswordResetToken = function () {
 
   // return the unencrypted token
   return resetToken;
+};
+
+// Create email verification code
+userSchema.methods.createEmailVerificationCode = function () {
+  // generate 6-digit code
+  const code = crypto.randomInt(100000, 1000000).toString();
+
+  // encrypt the code
+  this.emailVerificationCode = crypto
+    .createHash("sha256")
+    .update(code)
+    .digest("hex");
+
+  // set the code expire time
+  this.emailVerificationExpires =
+    Date.now() + EMAIL_VERIFICATION_CODE_EXPIRES_MS;
+
+  // return the unencrypted code
+  return code;
 };
 
 const User = mongoose.model("User", userSchema);

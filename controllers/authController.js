@@ -7,6 +7,7 @@ const catchAsync = require("../utils/catchAsync");
 const User = require("../models/userModel");
 const sendEmail = require("../mailer");
 const ResetPasswordTemplate = require("../templates/resetPasswordTemplate");
+const EmailVerificationTemplate = require("../templates/emailVerificationTemplate");
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -17,8 +18,10 @@ const signToken = (id) => {
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
 
-  // Remove password from output
+  // Remove sensitive fields from output
   user.password = undefined;
+  user.emailVerificationCode = undefined;
+  user.emailVerificationExpires = undefined;
 
   res.status(statusCode).json({
     status: "success",
@@ -38,7 +41,68 @@ exports.signup = catchAsync(async (req, res, next) => {
     confirmPassword: req.body.confirmPassword,
   });
 
+  // Generate and send the email verification code
+  const verificationCode = newUser.createEmailVerificationCode();
+  await newUser.save({ validateBeforeSave: false });
+
+  try {
+    const subject = "Verify your email (code valid for 1 min)";
+    const htmlContent = EmailVerificationTemplate(newUser, verificationCode);
+
+    await sendEmail(newUser.email, newUser.firstName, subject, htmlContent);
+  } catch (error) {
+    newUser.emailVerificationCode = undefined;
+    newUser.emailVerificationExpires = undefined;
+    await newUser.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError(
+        "There was an error sending the verification email. Try again later!",
+        500
+      )
+    );
+  }
+
   createSendToken(newUser, 201, res);
+});
+
+exports.verifyEmail = catchAsync(async (req, res, next) => {
+  const { email, code } = req.body;
+
+  // 1) Check if email and code are provided
+  if (!email || !code) {
+    return next(
+      new AppError("Please provide email and verification code", 400)
+    );
+  }
+
+  // 2) Find user by email + hashed code, and check it hasn't expired
+  const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+
+  const user = await User.findOne({
+    email,
+    emailVerificationCode: hashedCode,
+    emailVerificationExpires: { $gt: Date.now() }, // greater than
+  });
+
+  // 3) If code is invalid or has expired
+  if (!user) {
+    return next(
+      new AppError("Verification code is invalid or has expired", 400)
+    );
+  }
+
+  // 4) Mark email as verified and activate the account
+  user.isEmailVerified = true;
+  user.status = true;
+  user.emailVerificationCode = undefined;
+  user.emailVerificationExpires = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: "success",
+    message: "Email verified successfully!",
+  });
 });
 
 exports.login = catchAsync(async (req, res, next) => {

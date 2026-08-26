@@ -6,7 +6,6 @@ const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/userModel");
 const sendEmail = require("../mailer");
-const ResetPasswordTemplate = require("../templates/resetPasswordTemplate");
 const EmailVerificationTemplate = require("../templates/emailVerificationTemplate");
 
 const signToken = (id) => {
@@ -108,6 +107,48 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.verifyCode = catchAsync(async (req, res, next) => {
+  const { email, code } = req.body;
+
+  // 1) Check if email and code are provided
+  if (!email || !code) {
+    return next(
+      new AppError("Please provide email and verification code", 400)
+    );
+  }
+
+  // 2) Find user by email + hashed forgot-password code, and check it hasn't expired
+  const hashedCode = crypto
+    .createHash("sha256")
+    .update(String(code))
+    .digest("hex");
+
+  const user = await User.findOne({
+    email,
+    passwordResetCode: hashedCode,
+    passwordResetCodeExpires: { $gt: Date.now() }, // greater than
+  });
+
+  // 3) If code is invalid or has expired
+  if (!user) {
+    return next(
+      new AppError("Verification code is invalid or has expired", 400)
+    );
+  }
+
+  // 4) Mark the code as verified, giving the user a window to reset their password
+  user.passwordResetVerified = true;
+  user.passwordResetCode = undefined;
+  user.passwordResetCodeExpires = undefined;
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: "success",
+    message: "Code verified successfully!",
+  });
+});
+
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
@@ -168,31 +209,27 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   // 2) Check if user exists
   const user = await User.findOne({ email });
   if (!user) {
-    return next(new AppError("User not found", 404));
+    return next(new AppError("No account found with that email", 404));
   }
 
-  // 3) Generate the random reset token
-  const resetToken = user.createPasswordResetToken();
+  // 3) Generate and send a 6-digit OTP
+  const resetCode = user.createPasswordResetCode();
+  user.passwordResetVerified = undefined;
   await user.save({ validateBeforeSave: false });
 
-  // 4) Send it to user's email
-  const resetURL = `${req.protocol}://${req.get(
-    "host"
-  )}/reset-password/${resetToken}`;
-
   try {
-    const subject = "Your password reset token (valid for 10 min)";
-    const htmlContent = ResetPasswordTemplate(user, resetURL);
+    const subject = "Your password reset code (valid for 10 min)";
+    const htmlContent = EmailVerificationTemplate(user, resetCode);
 
     await sendEmail(user.email, user.firstName, subject, htmlContent);
 
     res.status(200).json({
       status: "success",
-      message: "Token sent to email!",
+      message: "Verification code sent to email!",
     });
   } catch (error) {
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
     await user.save({ validateBeforeSave: false });
 
     return next(
@@ -205,55 +242,141 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 });
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
-  // 1) Get user based on the token
-  const { token } = req.params;
+  const { email, password, confirmPassword } = req.body;
 
-  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-  const user = await User.findOne({
-    passwordResetToken: hashedToken,
-    passwordResetExpires: { $gt: Date.now() }, // greater than
-  });
-
-  // 2) If token has not expired, and there is user, set the new password
-  if (!user) {
-    return next(new AppError("Token is invalid or has expired", 400));
-  }
-
-  // 3) Update changedPasswordAt property for the user
-  user.password = req.body.password;
-  user.confirmPassword = req.body.confirmPassword;
-  user.passwordResetToken = undefined; // delete token
-  user.passwordResetExpires = undefined; // delete token
-  await user.save();
-
-  // 4) Log the user in, send JWT
-  createSendToken(user, 200, res);
-});
-
-exports.updatePassword = catchAsync(async (req, res, next) => {
-  const { currentPassword, newPassword, newConfirmPassword } = req.body;
-
-  // 1) Check if current and new password are provided
-  if (!currentPassword || !newPassword || !newConfirmPassword) {
+  // 1) Check if email, password and confirm password are provided
+  if (!email || !password || !confirmPassword) {
     return next(
-      new AppError("Please provide your current password and new password", 400)
+      new AppError("Please provide email, password and confirm password", 400)
     );
   }
 
-  // 2) Check if user exists && current password is correct
+  // 2) Check password and confirm password match
+  if (password !== confirmPassword) {
+    return next(
+      new AppError("Password and confirm password do not match", 400)
+    );
+  }
+
+  // 3) Find the user, and check the code was verified and the window hasn't expired
+  const user = await User.findOne({
+    email,
+    passwordResetVerified: true,
+    passwordResetExpires: { $gt: Date.now() }, // greater than
+  });
+
+  if (!user) {
+    return next(
+      new AppError("Please verify your code before resetting the password", 400)
+    );
+  }
+
+  // 4) Update the password
+  user.password = password;
+  user.confirmPassword = confirmPassword;
+  user.passwordResetVerified = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+
+  // 5) Log the user in, send JWT
+  createSendToken(user, 200, res);
+});
+
+exports.requestPasswordUpdateCode = catchAsync(async (req, res, next) => {
+  const { currentPassword } = req.body;
+
+  // 1) Check if current password is provided
+  if (!currentPassword) {
+    return next(new AppError("Please provide your current password", 400));
+  }
+
+  // 2) Check if current password is correct
   const user = await User.findById(req.user._id).select("+password");
 
   if (!user || !(await user.correctPassword(currentPassword, user.password))) {
     return next(new AppError("Incorrect password", 401));
   }
 
-  // 3) If everything ok, update password
+  // 3) Generate and send a 6-digit OTP
+  const resetCode = user.createPasswordResetCode();
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    const subject = "Your password update code (valid for 10 min)";
+    const htmlContent = EmailVerificationTemplate(user, resetCode);
+
+    await sendEmail(user.email, user.firstName, subject, htmlContent);
+
+    res.status(200).json({
+      status: "success",
+      message: "Verification code sent to email!",
+    });
+  } catch (error) {
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError(
+        "There was an error sending the email. Try again later!",
+        500
+      )
+    );
+  }
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword, newConfirmPassword, code } = req.body;
+
+  // 1) Check if current password, new password, confirm password, and code are provided
+  if (!currentPassword || !newPassword || !newConfirmPassword || !code) {
+    return next(
+      new AppError(
+        "Please provide your current password, new password, confirm password, and verification code",
+        400
+      )
+    );
+  }
+
+  // 2) Check new password and confirm password match
+  if (newPassword !== newConfirmPassword) {
+    return next(
+      new AppError("New password and confirm password do not match", 400)
+    );
+  }
+
+  // 3) Check if user exists && current password is correct
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
+    return next(new AppError("Incorrect password", 401));
+  }
+
+  // 4) Check the verification code
+  const hashedCode = crypto
+    .createHash("sha256")
+    .update(String(code))
+    .digest("hex");
+
+  if (
+    !user.passwordResetCode ||
+    user.passwordResetCode !== hashedCode ||
+    !user.passwordResetCodeExpires ||
+    user.passwordResetCodeExpires < Date.now()
+  ) {
+    return next(
+      new AppError("Verification code is invalid or has expired", 400)
+    );
+  }
+
+  // 5) If everything ok, update password
   user.password = newPassword;
   user.confirmPassword = newConfirmPassword;
+  user.passwordResetCode = undefined;
+  user.passwordResetCodeExpires = undefined;
   await user.save();
 
-  // 4) Log the user in, send JWT
+  // 6) Log the user in, send JWT
   createSendToken(user, 200, res);
 });
 

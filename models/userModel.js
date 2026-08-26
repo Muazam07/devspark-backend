@@ -4,6 +4,7 @@ const validator = require("validator");
 const bcrypt = require("bcryptjs");
 
 const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
+const PASSWORD_RESET_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 
 const userSchema = new mongoose.Schema(
   {
@@ -59,6 +60,9 @@ const userSchema = new mongoose.Schema(
     },
     emailVerificationCode: String,
     emailVerificationExpires: Date,
+    passwordResetCode: String,
+    passwordResetCodeExpires: Date,
+    passwordResetVerified: Boolean,
   },
   {
     timestamps: true,
@@ -140,6 +144,24 @@ userSchema.methods.createEmailVerificationCode = function () {
   // set the code expire time
   this.emailVerificationExpires =
     Date.now() + EMAIL_VERIFICATION_CODE_EXPIRES_MS;
+
+  // return the unencrypted code
+  return code;
+};
+
+// Create password reset OTP (forgot-password / authenticated password update)
+userSchema.methods.createPasswordResetCode = function () {
+  // generate 6-digit code
+  const code = crypto.randomInt(100000, 1000000).toString();
+
+  // encrypt the code
+  this.passwordResetCode = crypto
+    .createHash("sha256")
+    .update(code)
+    .digest("hex");
+
+  // set the code expire time
+  this.passwordResetCodeExpires = Date.now() + PASSWORD_RESET_CODE_EXPIRES_MS;
 
   // return the unencrypted code
   return code;

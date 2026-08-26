@@ -10,13 +10,15 @@ router.post("/signup", authController.signup);
 router.post("/verifyEmail", authController.verifyEmail);
 router.post("/login", authController.login);
 router.post("/forgotPassword", authController.forgotPassword);
-router.patch("/resetPassword/:token", authController.resetPassword);
+router.post("/verifyCode", authController.verifyCode);
+router.post("/resetPassword", authController.resetPassword);
 
 // PROTECTED ROUTES
 router.use(authController.protect);
 
 router.get("/me", userController.getMe);
 router.put("/updateMe", userController.updateMe);
+router.post("/requestPasswordUpdateCode", authController.requestPasswordUpdateCode);
 router.patch("/updateMyPassword", authController.updatePassword);
 router.delete("/deleteMe", userController.deleteMe);
 

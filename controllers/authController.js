@@ -289,18 +289,18 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 2) Check new password and confirm password match
+  // 2) Check if user exists && current password is correct
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
+    return next(new AppError("Current password is incorrect", 401));
+  }
+
+  // 3) Check new password and confirm password match
   if (newPassword !== newConfirmPassword) {
     return next(
       new AppError("New password and confirm password do not match", 400)
     );
-  }
-
-  // 3) Check if user exists && current password is correct
-  const user = await User.findById(req.user._id).select("+password");
-
-  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
-    return next(new AppError("Incorrect password", 401));
   }
 
   // 4) If everything ok, update password
@@ -308,8 +308,10 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   user.confirmPassword = newConfirmPassword;
   await user.save();
 
-  // 5) Log the user in, send JWT
-  createSendToken(user, 200, res);
+  res.status(200).json({
+    status: "success",
+    message: "Password updated successfully",
+  });
 });
 
 exports.protect = catchAsync(async (req, res, next) => {

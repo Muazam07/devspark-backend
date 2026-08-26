@@ -77,7 +77,10 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
   }
 
   // 2) Find user by email + hashed code, and check it hasn't expired
-  const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+  const hashedCode = crypto
+    .createHash("sha256")
+    .update(String(code))
+    .digest("hex");
 
   const user = await User.findOne({
     email,
@@ -120,7 +123,14 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 3) If everything ok, send token to client
+  // 3) Check if the account's email has been verified
+  if (!user.status) {
+    return next(
+      new AppError("Please verify your email before logging in", 401)
+    );
+  }
+
+  // 4) If everything ok, send token to client
   createSendToken(user, 200, res);
 });
 

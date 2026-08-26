@@ -3,8 +3,7 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
 
-// TESTING: 1 minute. Change to 10 * 60 * 1000 (10 minutes) later.
-const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 60 * 1000;
+const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 
 const userSchema = new mongoose.Schema(
   {

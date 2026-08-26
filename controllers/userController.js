@@ -42,11 +42,30 @@ exports.updateUser = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteUser = catchAsync(async (req, res, next) => {
-  await User.findByIdAndUpdate(req.user._id, { status: false });
+exports.updateUserStatus = catchAsync(async (req, res, next) => {
+  const { status } = req.body;
 
-  res.status(204).json({
+  if (typeof status !== "boolean") {
+    return next(new AppError("Please provide a valid status", 400));
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    { status },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedUser) {
+    return next(new AppError("User not found", 404));
+  }
+
+  res.status(200).json({
     status: "success",
-    data: null,
+    message: status
+      ? "User has been activated successfully."
+      : "User has been deactivated successfully.",
+    data: {
+      user: updatedUser,
+    },
   });
 });

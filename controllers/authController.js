@@ -62,7 +62,10 @@ exports.signup = catchAsync(async (req, res, next) => {
     );
   }
 
-  createSendToken(newUser, 201, res);
+  res.status(201).json({
+    status: "success",
+    message: "Verification code sent to email!",
+  });
 });
 
 exports.verifyEmail = catchAsync(async (req, res, next) => {

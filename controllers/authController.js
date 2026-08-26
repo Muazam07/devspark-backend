@@ -212,7 +212,15 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     return next(new AppError("No account found with that email", 404));
   }
 
-  // 3) Generate and send a 6-digit OTP
+  // 3) If a previously sent code hasn't expired yet, don't generate a new one
+  if (user.passwordResetCode && user.passwordResetCodeExpires > Date.now()) {
+    return res.status(200).json({
+      status: "success",
+      message: "Verification code already sent to email!",
+    });
+  }
+
+  // 4) Generate and send a 6-digit OTP
   const resetCode = user.createPasswordResetCode();
   user.passwordResetVerified = undefined;
   await user.save({ validateBeforeSave: false });
@@ -297,7 +305,15 @@ exports.requestPasswordUpdateCode = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect password", 401));
   }
 
-  // 3) Generate and send a 6-digit OTP
+  // 3) If a previously sent code hasn't expired yet, don't generate a new one
+  if (user.passwordResetCode && user.passwordResetCodeExpires > Date.now()) {
+    return res.status(200).json({
+      status: "success",
+      message: "Verification code already sent to email!",
+    });
+  }
+
+  // 4) Generate and send a 6-digit OTP
   const resetCode = user.createPasswordResetCode();
   await user.save({ validateBeforeSave: false });
 

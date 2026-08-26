@@ -135,9 +135,7 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
   }
 
   // 5) Neither code matched
-  return next(
-    new AppError("Verification code is invalid or has expired", 400)
-  );
+  return next(new AppError("Verification code is invalid or has expired", 400));
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -158,7 +156,10 @@ exports.login = catchAsync(async (req, res, next) => {
   // 3) Check if the account's email has been verified
   if (!user.status) {
     // If the previous verification code has expired, send a new one
-    if (!user.emailVerificationExpires || user.emailVerificationExpires < Date.now()) {
+    if (
+      !user.emailVerificationExpires ||
+      user.emailVerificationExpires < Date.now()
+    ) {
       const verificationCode = user.createEmailVerificationCode();
       await user.save({ validateBeforeSave: false });
 

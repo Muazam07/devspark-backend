@@ -15,13 +15,9 @@ router.post("/resetPassword", authController.resetPassword);
 // PROTECTED ROUTES
 router.use(authController.protect);
 
-router.get("/me", userController.getMe);
-router.put("/updateMe", userController.updateMe);
-router.post(
-  "/requestPasswordUpdateCode",
-  authController.requestPasswordUpdateCode
-);
-router.patch("/updateMyPassword", authController.updatePassword);
-router.delete("/deleteMe", userController.deleteMe);
+router.get("/:id", userController.getUser);
+router.put("/updateUser", userController.updateUser);
+router.patch("/updatePassword", authController.updatePassword);
+router.delete("/deleteUser", userController.deleteUser);
 
 module.exports = router;

@@ -1,8 +1,7 @@
 const AppError = require("./appError");
 
-const handleCastErrorDB = (err) => {
-  const message = `Invalid ${err.path}: ${err.value}`;
-  return new AppError(message, 400);
+const handleCastErrorDB = () => {
+  return new AppError("User not found", 404);
 };
 
 const handleDuplicateFieldsDB = (err) => {

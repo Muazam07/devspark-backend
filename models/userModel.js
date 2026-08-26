@@ -69,6 +69,27 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Strip internal/sensitive fields from every JSON response
+userSchema.set("toJSON", {
+  transform(doc, ret) {
+    delete ret._id;
+    delete ret.__v;
+    delete ret.password;
+    delete ret.confirmPassword;
+    delete ret.passwordChangedAt;
+    delete ret.passwordResetToken;
+    delete ret.passwordResetExpires;
+    delete ret.passwordResetCode;
+    delete ret.passwordResetCodeExpires;
+    delete ret.passwordResetVerified;
+    delete ret.emailVerificationCode;
+    delete ret.emailVerificationExpires;
+    delete ret.createdAt;
+    delete ret.updatedAt;
+    return ret;
+  },
+});
+
 // Password Hashing
 userSchema.pre("save", async function () {
   // Only hash the password if it is new or has been modified

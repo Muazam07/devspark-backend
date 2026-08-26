@@ -43,7 +43,7 @@ exports.updateUser = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteUser = catchAsync(async (req, res, next) => {
-  await User.findByIdAndDelete(req.user._id);
+  await User.findByIdAndUpdate(req.user._id, { status: false });
 
   res.status(204).json({
     status: "success",

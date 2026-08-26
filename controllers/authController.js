@@ -68,48 +68,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.verifyEmail = catchAsync(async (req, res, next) => {
-  const { email, code } = req.body;
-
-  // 1) Check if email and code are provided
-  if (!email || !code) {
-    return next(
-      new AppError("Please provide email and verification code", 400)
-    );
-  }
-
-  // 2) Find user by email + hashed code, and check it hasn't expired
-  const hashedCode = crypto
-    .createHash("sha256")
-    .update(String(code))
-    .digest("hex");
-
-  const user = await User.findOne({
-    email,
-    emailVerificationCode: hashedCode,
-    emailVerificationExpires: { $gt: Date.now() }, // greater than
-  });
-
-  // 3) If code is invalid or has expired
-  if (!user) {
-    return next(
-      new AppError("Verification code is invalid or has expired", 400)
-    );
-  }
-
-  // 4) Mark email as verified and activate the account
-  user.isEmailVerified = true;
-  user.status = true;
-  user.emailVerificationCode = undefined;
-  user.emailVerificationExpires = undefined;
-  await user.save({ validateBeforeSave: false });
-
-  res.status(200).json({
-    status: "success",
-    message: "Email verified successfully!",
-  });
-});
-
+// Handles both signup email verification and forgot-password OTP verification
 exports.verifyCode = catchAsync(async (req, res, next) => {
   const { email, code } = req.body;
 
@@ -120,36 +79,57 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 2) Find user by email + hashed forgot-password code, and check it hasn't expired
+  // 2) Check if a user exists with that email
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("No account found with that email", 404));
+  }
+
   const hashedCode = crypto
     .createHash("sha256")
     .update(String(code))
     .digest("hex");
 
-  const user = await User.findOne({
-    email,
-    passwordResetCode: hashedCode,
-    passwordResetCodeExpires: { $gt: Date.now() }, // greater than
-  });
+  // 3) Try matching a signup email-verification code first
+  if (
+    user.emailVerificationCode === hashedCode &&
+    user.emailVerificationExpires &&
+    user.emailVerificationExpires > Date.now()
+  ) {
+    user.isEmailVerified = true;
+    user.status = true;
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
 
-  // 3) If code is invalid or has expired
-  if (!user) {
-    return next(
-      new AppError("Verification code is invalid or has expired", 400)
-    );
+    return res.status(200).json({
+      status: "success",
+      message: "Email verified successfully!",
+    });
   }
 
-  // 4) Mark the code as verified, giving the user a window to reset their password
-  user.passwordResetVerified = true;
-  user.passwordResetCode = undefined;
-  user.passwordResetCodeExpires = undefined;
-  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  await user.save({ validateBeforeSave: false });
+  // 4) Otherwise, try matching a forgot-password OTP
+  if (
+    user.passwordResetCode === hashedCode &&
+    user.passwordResetCodeExpires &&
+    user.passwordResetCodeExpires > Date.now()
+  ) {
+    user.passwordResetVerified = true;
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save({ validateBeforeSave: false });
 
-  res.status(200).json({
-    status: "success",
-    message: "Code verified successfully!",
-  });
+    return res.status(200).json({
+      status: "success",
+      message: "Code verified successfully!",
+    });
+  }
+
+  // 5) Neither code matched
+  return next(
+    new AppError("Verification code is invalid or has expired", 400)
+  );
 });
 
 exports.login = catchAsync(async (req, res, next) => {

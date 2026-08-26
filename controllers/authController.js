@@ -46,7 +46,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   await newUser.save({ validateBeforeSave: false });
 
   try {
-    const subject = "Verify your email (code valid for 1 min)";
+    const subject = "Verify your email (code valid for 10 min)";
     const htmlContent = EmailVerificationTemplate(newUser, verificationCode);
 
     await sendEmail(newUser.email, newUser.firstName, subject, htmlContent);
@@ -125,6 +125,30 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // 3) Check if the account's email has been verified
   if (!user.status) {
+    // If the previous verification code has expired, send a new one
+    if (!user.emailVerificationExpires || user.emailVerificationExpires < Date.now()) {
+      const verificationCode = user.createEmailVerificationCode();
+      await user.save({ validateBeforeSave: false });
+
+      try {
+        const subject = "Verify your email (code valid for 10 min)";
+        const htmlContent = EmailVerificationTemplate(user, verificationCode);
+
+        await sendEmail(user.email, user.firstName, subject, htmlContent);
+      } catch (error) {
+        user.emailVerificationCode = undefined;
+        user.emailVerificationExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        return next(
+          new AppError(
+            "There was an error sending the verification email. Try again later!",
+            500
+          )
+        );
+      }
+    }
+
     return next(
       new AppError("Please verify your email before logging in", 401)
     );

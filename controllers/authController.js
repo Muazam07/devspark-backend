@@ -17,16 +17,24 @@ const signToken = (id) => {
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
 
-  // Remove sensitive fields from output
-  user.password = undefined;
-  user.emailVerificationCode = undefined;
-  user.emailVerificationExpires = undefined;
+  // Strip sensitive/internal fields from output
+  const userData = user.toObject();
+  delete userData.password;
+  delete userData.emailVerificationCode;
+  delete userData.emailVerificationExpires;
+  delete userData.passwordResetCode;
+  delete userData.passwordResetCodeExpires;
+  delete userData._id;
+  delete userData.createdAt;
+  delete userData.updatedAt;
+  delete userData.passwordChangedAt;
+  delete userData.__v;
 
   res.status(statusCode).json({
     status: "success",
     token,
     data: {
-      user,
+      user: userData,
     },
   });
 };
@@ -249,14 +257,18 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 3) Find the user, and check the code was verified and the window hasn't expired
-  const user = await User.findOne({
-    email,
-    passwordResetVerified: true,
-    passwordResetExpires: { $gt: Date.now() }, // greater than
-  });
-
+  // 3) Check if a user exists with that email
+  const user = await User.findOne({ email });
   if (!user) {
+    return next(new AppError("No account found with that email", 404));
+  }
+
+  // 4) Check the code was verified and the window hasn't expired
+  if (
+    !user.passwordResetVerified ||
+    !user.passwordResetExpires ||
+    user.passwordResetExpires < Date.now()
+  ) {
     return next(
       new AppError("Please verify your code before resetting the password", 400)
     );
@@ -269,8 +281,10 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.passwordResetExpires = undefined;
   await user.save();
 
-  // 5) Log the user in, send JWT
-  createSendToken(user, 200, res);
+  res.status(200).json({
+    status: "success",
+    message: "Password reset successfully",
+  });
 });
 
 exports.requestPasswordUpdateCode = catchAsync(async (req, res, next) => {

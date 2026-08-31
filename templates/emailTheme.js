@@ -181,7 +181,7 @@ const renderEmailLayout = ({ preheader, eyebrow, title, content }) => `
             </tr>
 
             <tr>
-              <td class="email-content" style="padding: 42px 46px 42px;">
+              <td class="email-content" style="padding: 28px;">
                 <div style="margin-bottom: 24px;">
                   <p style="margin: 0 0 7px; color: ${brand.active}; font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: 700; line-height: 15px; letter-spacing: 1.5px; text-transform: uppercase;">
                     ${escapeHtml(eyebrow)}
@@ -195,7 +195,7 @@ const renderEmailLayout = ({ preheader, eyebrow, title, content }) => `
             </tr>
 
             <tr>
-              <td class="email-footer" style="border-top: 1px solid ${brand.border}; padding: 22px 44px 26px; background-color: #fafbfe;">
+              <td class="email-footer" style="border-top: 1px solid ${brand.border}; padding: 28px; background-color: #fafbfe;">
                 <p style="margin: 0 0 5px; color: ${brand.ink}; font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: 700; line-height: 18px;">
                   DevsPark Labs
                 </p>

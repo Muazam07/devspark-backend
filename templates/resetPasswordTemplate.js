@@ -1,17 +1,39 @@
-const ResetPasswordTemplate = (user, url) => `
-<!DOCTYPE html>
-<html>
-   <head>
-   </head>
-   <body style="font-family: 'Arial', sans-serif; background-color: #f4f4f4; color: #333; padding: 20px;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
-         <h2 style="color: #3498db;">Hello ${user.firstName},</h2>
-         <p style="margin-bottom: 20px; font-size: 16px;">You are receiving this email because you (or someone else) have requested the reset of a password. Please click on the link below to reset your password:</p>
-         <div style="font-size: 14px;"><strong style="font-size: 16px;"><a href="${url}">Reset password</a></strong></div>
-         <p style="margin-bottom: 20px; font-size: 16px;">If you did not request this, please ignore this email and your password will remain unchanged.</p>
-      </div>
-   </body>
-</html>
-`;
+const {
+  escapeHtml,
+  renderEmailLayout,
+  renderNotice,
+  renderPrimaryButton,
+} = require("./emailTheme");
+
+const ResetPasswordTemplate = (user, url) => {
+  const firstName = escapeHtml(user?.firstName || "there");
+  const safeUrl = escapeHtml(url);
+  const content = `
+    <p style="margin: 0 0 10px; color: #162456; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700; line-height: 24px;">
+      Hello ${firstName},
+    </p>
+    <p style="margin: 0; color: #40517a; font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 24px;">
+      We received a request to reset the password for your DevsPark Labs account. Select the button below to choose a new password.
+    </p>
+    ${renderPrimaryButton("Reset password", url)}
+    <p style="margin: 0 0 8px; color: #667599; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px;">
+      If the button doesn’t work, copy and paste this link into your browser:
+    </p>
+    <p style="margin: 0; word-break: break-all; color: #193cb8; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px;">
+      <a href="${safeUrl}" target="_blank" style="color: #193cb8; text-decoration: underline;">${safeUrl}</a>
+    </p>
+    ${renderNotice({
+      title: "Didn’t request this?",
+      copy: "You can safely ignore this email. Your password will remain unchanged.",
+    })}
+  `;
+
+  return renderEmailLayout({
+    preheader: "Reset your DevsPark Labs account password securely.",
+    eyebrow: "Password recovery",
+    title: "Create a new password",
+    content,
+  });
+};
 
 module.exports = ResetPasswordTemplate;

@@ -41,7 +41,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   await newUser.save({ validateBeforeSave: false });
 
   try {
-    const subject = "Verify your email (code valid for 10 min)";
+    const subject = "Your DevsPark Labs verification code";
     const htmlContent = EmailVerificationTemplate(newUser, verificationCode);
 
     await sendEmail(newUser.email, newUser.firstName, subject, htmlContent);
@@ -161,7 +161,7 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    const subject = "Verify your email (code valid for 10 min)";
+    const subject = "Your DevsPark Labs verification code";
     const htmlContent = EmailVerificationTemplate(user, verificationCode);
 
     await sendEmail(user.email, user.firstName, subject, htmlContent);
@@ -231,7 +231,9 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
   try {
     const subject = "Your password reset code (valid for 10 min)";
-    const htmlContent = EmailVerificationTemplate(user, resetCode);
+    const htmlContent = EmailVerificationTemplate(user, resetCode, {
+      purpose: "password-reset",
+    });
 
     await sendEmail(user.email, user.firstName, subject, htmlContent);
 

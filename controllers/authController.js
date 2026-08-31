@@ -61,6 +61,9 @@ exports.signup = catchAsync(async (req, res, next) => {
   res.status(201).json({
     status: "success",
     message: "Verification code sent to email!",
+    data: {
+      user: newUser,
+    },
   });
 });
 

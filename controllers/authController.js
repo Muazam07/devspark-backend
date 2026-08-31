@@ -153,12 +153,7 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
     user.emailVerificationExpires &&
     user.emailVerificationExpires > Date.now()
   ) {
-    return next(
-      new AppError(
-        "A verification code was already sent. Please wait before requesting a new one",
-        400
-      )
-    );
+    return next(new AppError("A verification code was already sent", 400));
   }
 
   // 5) Generate and send a new verification code

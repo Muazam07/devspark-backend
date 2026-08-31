@@ -2,7 +2,9 @@ node_modules
 
 /dist
 
-.env
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
 
 AGENTS.md
 CLAUDE.md

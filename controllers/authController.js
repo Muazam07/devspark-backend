@@ -141,41 +141,7 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 3) Check if the account's email has been verified
-  if (!user.status) {
-    // If the previous verification code has expired, send a new one
-    if (
-      !user.emailVerificationExpires ||
-      user.emailVerificationExpires < Date.now()
-    ) {
-      const verificationCode = user.createEmailVerificationCode();
-      await user.save({ validateBeforeSave: false });
-
-      try {
-        const subject = "Verify your email (code valid for 10 min)";
-        const htmlContent = EmailVerificationTemplate(user, verificationCode);
-
-        await sendEmail(user.email, user.firstName, subject, htmlContent);
-      } catch (error) {
-        user.emailVerificationCode = undefined;
-        user.emailVerificationExpires = undefined;
-        await user.save({ validateBeforeSave: false });
-
-        return next(
-          new AppError(
-            "There was an error sending the verification email. Try again later!",
-            500
-          )
-        );
-      }
-    }
-
-    return next(
-      new AppError("Please verify your email before logging in", 401)
-    );
-  }
-
-  // 4) If everything ok, send token to client
+  // 3) If everything ok, send token to client
   createSendToken(user, 200, res);
 });
 
@@ -348,6 +314,13 @@ exports.protect = catchAsync(async (req, res, next) => {
   if (freshUser.changePasswordAfter(decode.iat)) {
     return next(
       new AppError("User recently changed password! Please log in again.", 401)
+    );
+  }
+
+  // 5) Check if the account is active
+  if (!freshUser.status) {
+    return next(
+      new AppError("Your account is not active. Please contact support.", 403)
     );
   }
 

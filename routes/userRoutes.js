@@ -12,6 +12,7 @@ router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
 
 router.post("/verify-code", authController.verifyCode);
+router.post("/resend-verification-code", authController.resendVerificationCode);
 
 // PROTECTED ROUTES
 router.use(authController.protect);

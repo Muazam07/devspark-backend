@@ -126,6 +126,66 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
   return next(new AppError("Verification code is invalid or has expired", 400));
 });
 
+exports.resendVerificationCode = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  // 1) Check if email is provided
+  if (!email) {
+    return next(new AppError("Please provide email", 400));
+  }
+
+  // 2) Check if a user exists with that email
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("No account found with that email", 404));
+  }
+
+  // 3) Already verified users don't need a new code
+  if (user.status) {
+    return next(new AppError("This email is already verified", 400));
+  }
+
+  // 4) Only issue a new code once the previous one has expired
+  if (
+    user.emailVerificationExpires &&
+    user.emailVerificationExpires > Date.now()
+  ) {
+    return next(
+      new AppError(
+        "A verification code was already sent. Please wait before requesting a new one",
+        400
+      )
+    );
+  }
+
+  // 5) Generate and send a new verification code
+  const verificationCode = user.createEmailVerificationCode();
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    const subject = "Verify your email (code valid for 10 min)";
+    const htmlContent = EmailVerificationTemplate(user, verificationCode);
+
+    await sendEmail(user.email, user.firstName, subject, htmlContent);
+  } catch (error) {
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError(
+        "There was an error sending the verification email. Try again later!",
+        500
+      )
+    );
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Verification code sent to email!",
+  });
+});
+
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 

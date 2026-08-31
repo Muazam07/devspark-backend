@@ -153,13 +153,13 @@ const renderEmailLayout = ({ preheader, eyebrow, title, content }) => `
         <td align="center" style="padding: 44px 16px;">
           <table class="email-shell" role="presentation" width="620" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 620px; overflow: hidden; border: 1px solid ${brand.border}; border-radius: 24px; background-color: ${brand.white}; box-shadow: 0 24px 60px rgba(22, 36, 86, 0.14);">
             <tr>
-              <td class="email-header" bgcolor="#f5f9ff" style="padding: 16px; background-color: #f5f9ff; background-image: linear-gradient(135deg, #ffffff 0%, #eef7ff 100%);">
+              <td class="email-header" bgcolor="#f5f9ff" style="padding: 20px 24px; background-color: #f5f9ff; background-image: linear-gradient(135deg, #ffffff 0%, #eef7ff 100%);">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td valign="middle">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                         <tr>
-                          <td bgcolor="${brand.white}" style="border: 1px solid ${brand.border}; border-radius: 10px; background-color: ${brand.white}; padding: 7px 10px;">
+                          <td >
                             <img src="cid:devspark-logo" width="125" alt="DevsPark Labs" style="display: block; width: 125px; max-width: 100%; height: auto;" />
                           </td>
                         </tr>

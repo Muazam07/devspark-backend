@@ -8,6 +8,9 @@ const User = require("../models/userModel");
 const sendEmail = require("../mailer");
 const EmailVerificationTemplate = require("../templates/emailVerificationTemplate");
 
+const ACCOUNT_VERIFICATION_SUBJECT = "DevsPark Account Verification";
+const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
+
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
@@ -41,7 +44,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   await newUser.save({ validateBeforeSave: false });
 
   try {
-    const subject = "Your DevsPark Labs verification code";
+    const subject = ACCOUNT_VERIFICATION_SUBJECT;
     const htmlContent = EmailVerificationTemplate(newUser, verificationCode);
 
     await sendEmail(newUser.email, newUser.firstName, subject, htmlContent);
@@ -161,7 +164,7 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    const subject = "Your DevsPark Labs verification code";
+    const subject = ACCOUNT_VERIFICATION_SUBJECT;
     const htmlContent = EmailVerificationTemplate(user, verificationCode);
 
     await sendEmail(user.email, user.firstName, subject, htmlContent);
@@ -230,7 +233,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    const subject = "Your password reset code (valid for 10 min)";
+    const subject = PASSWORD_RESET_SUBJECT;
     const htmlContent = EmailVerificationTemplate(user, resetCode, {
       purpose: "password-reset",
     });

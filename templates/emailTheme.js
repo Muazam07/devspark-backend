@@ -13,7 +13,10 @@ const brand = Object.freeze({
 });
 
 const fontFamily =
-  "'Mozilla Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif";
+  "'Inter', 'Avenir Next', 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif";
+
+const monoFontFamily =
+  "'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', 'Courier New', monospace";
 
 const escapeHtml = (value) =>
   String(value ?? "")
@@ -27,8 +30,8 @@ const renderCodePanel = (code) => `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0;">
     <tr>
       <td align="center">
-        <div class="email-code-panel" style="width: 100%; max-width: 390px; box-sizing: border-box; border: 2px dashed ${brand.active}; border-radius: 16px; background-color: ${brand.accentSoft}; padding: 24px 18px; text-align: center;">
-          <p class="email-code" style="margin: 0; color: ${brand.active}; font-family: 'Geist Mono', 'Courier New', Courier, monospace; font-size: 38px; font-weight: 700; line-height: 46px; letter-spacing: 9px;">
+        <div class="email-code-panel" style="width: 100%; max-width: 390px; box-sizing: border-box; border-radius: 16px; background-color: ${brand.accentSoft}; padding: 24px 18px; text-align: center;">
+          <p class="email-code" style="margin: 0; color: ${brand.active}; font-family: ${monoFontFamily}; font-size: 38px; font-weight: 700; line-height: 46px; letter-spacing: 9px;">
             ${escapeHtml(code)}
           </p>
         </div>

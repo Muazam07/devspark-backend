@@ -27,17 +27,11 @@ const renderCodePanel = (code) => `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0;">
     <tr>
       <td align="center">
-        <div class="email-code-panel" style="width: 100%; max-width: 390px; box-sizing: border-box; border: 2px dashed ${brand.active}; border-radius: 16px; background-color: ${brand.accentSoft}; padding: 20px 18px 22px; text-align: center;">
-          <p style="margin: 0 0 8px; color: ${brand.accentDark}; font-family: ${fontFamily}; font-size: 10px; font-weight: 700; line-height: 15px; letter-spacing: 1.6px; text-transform: uppercase;">
-            Verification code
-          </p>
+        <div class="email-code-panel" style="width: 100%; max-width: 390px; box-sizing: border-box; border: 2px dashed ${brand.active}; border-radius: 16px; background-color: ${brand.accentSoft}; padding: 24px 18px; text-align: center;">
           <p class="email-code" style="margin: 0; color: ${brand.active}; font-family: 'Geist Mono', 'Courier New', Courier, monospace; font-size: 38px; font-weight: 700; line-height: 46px; letter-spacing: 9px;">
             ${escapeHtml(code)}
           </p>
         </div>
-        <p style="margin: 13px 0 0; color: ${brand.muted}; font-family: ${fontFamily}; font-size: 12px; line-height: 18px;">
-          Enter this code in the DevsPark verification screen.
-        </p>
       </td>
     </tr>
   </table>
@@ -249,21 +243,18 @@ const renderEmailLayout = ({
               </td>
             </tr>
             <tr>
-              <td class="email-footer" bgcolor="${brand.ink}" style="padding: 30px 40px 31px; background-color: ${brand.ink}; background-image: linear-gradient(135deg, #162456 0%, #1c2f6e 52%, #193cb8 100%);">
+              <td class="email-footer" bgcolor="${brand.ink}" style="padding: 24px 40px 25px; background-color: ${brand.ink}; background-image: linear-gradient(135deg, #162456 0%, #1c2f6e 52%, #193cb8 100%);">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td align="center">
-                      <p style="margin: 0 0 7px; color: ${brand.white}; font-family: ${fontFamily}; font-size: 17px; font-weight: 800; line-height: 23px; letter-spacing: 0.2px;">
+                      <p style="margin: 0 0 10px; color: ${brand.white}; font-family: ${fontFamily}; font-size: 16px; font-weight: 800; line-height: 22px; letter-spacing: 0.2px;">
                         DEVSPARK <span style="color: ${brand.accent};">LABS</span>
-                      </p>
-                      <p style="margin: 0 0 17px; color: #cbd5e1; font-family: ${fontFamily}; font-size: 12px; line-height: 18px;">
-                        Building dependable digital products.
                       </p>
                       <p style="margin: 0 0 4px; color: #94a3b8; font-family: ${fontFamily}; font-size: 10px; line-height: 16px;">
                         &copy; ${new Date().getFullYear()} DevsPark Labs. All rights reserved.
                       </p>
                       <p style="margin: 0; color: #94a3b8; font-family: ${fontFamily}; font-size: 10px; line-height: 16px;">
-                        Automated security email &nbsp;&bull;&nbsp; <a href="mailto:info@devsparklabs.com" style="color: ${brand.accent}; text-decoration: none;">Contact support</a>
+                        Automated email &nbsp;&bull;&nbsp; Please do not reply &nbsp;&bull;&nbsp; <a href="mailto:info@devsparklabs.com" style="color: ${brand.accent}; text-decoration: none;">Contact support</a>
                       </p>
                     </td>
                   </tr>
@@ -272,9 +263,6 @@ const renderEmailLayout = ({
             </tr>
           </table>
 
-          <p style="margin: 16px 0 0; color: #94a3b8; font-family: ${fontFamily}; font-size: 10px; line-height: 16px; text-align: center;">
-            Please do not reply directly to this message.
-          </p>
         </td>
       </tr>
     </table>

@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const path = require("path");
 
 // CREATE TRANSPORTER
 const transporter = nodemailer.createTransport({
@@ -16,6 +17,13 @@ const sendEmail = async (email, name, subject, htmlContent) => {
     to: email,
     subject: subject,
     html: htmlContent,
+    attachments: [
+      {
+        filename: "devspark-logo.png",
+        path: path.join(__dirname, "templates/assets/devspark-logo.png"),
+        cid: "devspark-logo",
+      },
+    ],
   });
 
   console.log("Message sent: %s", info.messageId);

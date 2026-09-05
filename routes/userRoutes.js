@@ -17,6 +17,7 @@ router.post("/resend-verification-code", authController.resendVerificationCode);
 // PROTECTED ROUTES
 router.use(authController.protect);
 
+router.get("/", userController.getAllUsers);
 router.get("/:id", userController.getUser);
 router.put("/update-user", userController.updateUser);
 router.patch("/update-password", authController.updatePassword);

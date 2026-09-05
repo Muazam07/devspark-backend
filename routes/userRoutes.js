@@ -19,7 +19,7 @@ router.use(authController.protect);
 router.get("/", userController.getAllUsers);
 router.put("/update-user", userController.updateUser);
 router.patch("/update-password", authController.updatePassword);
-router.patch("/update-user-status", userController.updateUserStatus);
+router.patch("/:id/status", userController.updateUserStatus);
 router.get("/:id", userController.getUser);
 
 module.exports = router;

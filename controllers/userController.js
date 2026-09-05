@@ -58,15 +58,20 @@ exports.updateUserStatus = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide a valid status", 400));
   }
 
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user._id,
-    { status },
-    { new: true, runValidators: true }
-  );
+  const user = await User.findOne({ id: req.params.id });
 
-  if (!updatedUser) {
+  if (!user) {
     return next(new AppError("User not found", 404));
   }
+
+  if (!user.isEmailVerified) {
+    return next(
+      new AppError("Only verified users can have their status updated", 400)
+    );
+  }
+
+  user.status = status;
+  await user.save({ validateBeforeSave: false });
 
   res.status(200).json({
     status: "success",
@@ -74,7 +79,7 @@ exports.updateUserStatus = catchAsync(async (req, res, next) => {
       ? "User has been activated successfully."
       : "User has been deactivated successfully.",
     data: {
-      user: updatedUser,
+      user,
     },
   });
 });

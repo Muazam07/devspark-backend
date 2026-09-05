@@ -1,11 +1,19 @@
 // Custom Imports
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const userFilters = require("../filters/userFilters");
 const paginate = require("../utils/paginate");
 const User = require("../models/userModel");
 
 exports.getAllUsers = catchAsync(async (req, res, next) => {
-  const { documents: users, pagination } = await paginate(User, req.query, {
+  const filter = userFilters(req.query);
+  const usersQuery = User.find(filter).sort({ createdAt: -1, _id: -1 });
+  const countQuery = User.countDocuments(filter);
+  const { documents: users, pagination } = await paginate({
+    query: usersQuery,
+    countQuery,
+    page: req.query.page,
+    limit: req.query.limit,
     totalKey: "totalUsers",
   });
 

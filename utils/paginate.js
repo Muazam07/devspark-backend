@@ -12,19 +12,17 @@ const parsePositiveInteger = (value, fallback, fieldName) => {
   return parsedValue;
 };
 
-const paginate = async (
-  model,
-  queryParams = {},
-  {
-    filter = {},
-    sort = { createdAt: -1, _id: -1 },
-    defaultLimit = 10,
-    maxLimit = 100,
-    totalKey = "totalResults",
-  } = {}
-) => {
-  const page = parsePositiveInteger(queryParams.page, 1, "Page");
-  const limit = parsePositiveInteger(queryParams.limit, defaultLimit, "Limit");
+const paginate = async ({
+  query,
+  countQuery,
+  page: pageValue,
+  limit: limitValue,
+  defaultLimit = 10,
+  maxLimit = 100,
+  totalKey = "totalResults",
+}) => {
+  const page = parsePositiveInteger(pageValue, 1, "Page");
+  const limit = parsePositiveInteger(limitValue, defaultLimit, "Limit");
 
   if (limit > maxLimit) {
     throw new AppError(`Limit cannot be greater than ${maxLimit}`, 400);
@@ -32,8 +30,8 @@ const paginate = async (
 
   const skip = (page - 1) * limit;
   const [documents, totalResults] = await Promise.all([
-    model.find(filter).sort(sort).skip(skip).limit(limit),
-    model.countDocuments(filter),
+    query.skip(skip).limit(limit),
+    countQuery,
   ]);
 
   return {

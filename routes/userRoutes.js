@@ -7,20 +7,19 @@ const router = express.Router();
 
 // AUTH ROUTES
 router.post("/signup", authController.signup);
+router.post("/verify-code", authController.verifyCode);
+router.post("/resend-verification-code", authController.resendVerificationCode);
 router.post("/login", authController.login);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
-
-router.post("/verify-code", authController.verifyCode);
-router.post("/resend-verification-code", authController.resendVerificationCode);
 
 // PROTECTED ROUTES
 router.use(authController.protect);
 
 router.get("/", userController.getAllUsers);
-router.get("/:id", userController.getUser);
 router.put("/update-user", userController.updateUser);
 router.patch("/update-password", authController.updatePassword);
 router.patch("/update-user-status", userController.updateUserStatus);
+router.get("/:id", userController.getUser);
 
 module.exports = router;

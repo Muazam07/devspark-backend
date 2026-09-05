@@ -305,44 +305,6 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updatePassword = catchAsync(async (req, res, next) => {
-  const { currentPassword, newPassword, newConfirmPassword } = req.body;
-
-  // 1) Check if current password, new password and confirm password are provided
-  if (!currentPassword || !newPassword || !newConfirmPassword) {
-    return next(
-      new AppError(
-        "Please provide your current password, new password and confirm password",
-        400
-      )
-    );
-  }
-
-  // 2) Check if user exists && current password is correct
-  const user = await User.findById(req.user._id).select("+password");
-
-  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
-    return next(new AppError("Current password is incorrect", 401));
-  }
-
-  // 3) Check new password and confirm password match
-  if (newPassword !== newConfirmPassword) {
-    return next(
-      new AppError("New password and confirm password do not match", 400)
-    );
-  }
-
-  // 4) If everything ok, update password
-  user.password = newPassword;
-  user.confirmPassword = newConfirmPassword;
-  await user.save();
-
-  res.status(200).json({
-    status: "success",
-    message: "Password updated successfully",
-  });
-});
-
 exports.protect = catchAsync(async (req, res, next) => {
   // 1) Getting token and check of it's there
   let token;
@@ -390,4 +352,42 @@ exports.protect = catchAsync(async (req, res, next) => {
   // GRANT ACCESS TO PROTECTED ROUTE
   req.user = freshUser;
   next();
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword, newConfirmPassword } = req.body;
+
+  // 1) Check if current password, new password and confirm password are provided
+  if (!currentPassword || !newPassword || !newConfirmPassword) {
+    return next(
+      new AppError(
+        "Please provide your current password, new password and confirm password",
+        400
+      )
+    );
+  }
+
+  // 2) Check if user exists && current password is correct
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
+    return next(new AppError("Current password is incorrect", 401));
+  }
+
+  // 3) Check new password and confirm password match
+  if (newPassword !== newConfirmPassword) {
+    return next(
+      new AppError("New password and confirm password do not match", 400)
+    );
+  }
+
+  // 4) If everything ok, update password
+  user.password = newPassword;
+  user.confirmPassword = newConfirmPassword;
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Password updated successfully",
+  });
 });

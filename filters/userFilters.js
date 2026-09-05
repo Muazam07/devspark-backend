@@ -26,7 +26,13 @@ const userFilters = ({ search, emailVerified, status }) => {
     throw new AppError("Search must be text", 400);
   }
 
-  const searchTerms = search?.trim().split(/\s+/).filter(Boolean) || [];
+  const normalizedSearch = search?.trim() || "";
+
+  if (normalizedSearch.length > 0 && normalizedSearch.length < 3) {
+    throw new AppError("Search must contain at least 3 characters", 400);
+  }
+
+  const searchTerms = normalizedSearch.split(/\s+/).filter(Boolean);
 
   if (searchTerms.length > 0) {
     filter.$and = searchTerms.map((term) => {

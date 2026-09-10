@@ -10,6 +10,17 @@ const EmailVerificationTemplate = require("../templates/emailVerificationTemplat
 
 const ACCOUNT_VERIFICATION_SUBJECT = "DevsPark Account Verification";
 const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
+const INACTIVE_ACCOUNT_MESSAGE =
+  "Your account is inactive. Please contact an administrator.";
+
+const rejectInactiveAccount = (user, next) => {
+  if (user.isEmailVerified && !user.status) {
+    next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
+    return true;
+  }
+
+  return false;
+};
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -87,6 +98,8 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     return next(new AppError("No account found with that email", 404));
   }
 
+  if (rejectInactiveAccount(user, next)) return;
+
   const hashedCode = crypto
     .createHash("sha256")
     .update(String(code))
@@ -146,8 +159,10 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
     return next(new AppError("No account found with that email", 404));
   }
 
+  if (rejectInactiveAccount(user, next)) return;
+
   // 3) Already verified users don't need a new code
-  if (user.status) {
+  if (user.isEmailVerified) {
     return next(new AppError("This email is already verified", 400));
   }
 
@@ -202,7 +217,12 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 3) If everything ok, send token to client
+  // 3) Check if the account is active
+  if (!user.status) {
+    return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
+  }
+
+  // 4) If everything ok, send token to client
   createSendToken(user, 200, res);
 });
 
@@ -218,6 +238,8 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
+
+  if (rejectInactiveAccount(user, next)) return;
 
   // 3) If a previously sent code hasn't expired yet, don't generate a new one
   if (user.passwordResetCode && user.passwordResetCodeExpires > Date.now()) {
@@ -281,6 +303,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     return next(new AppError("No account found with that email", 404));
   }
 
+  if (rejectInactiveAccount(user, next)) return;
+
   // 4) Check the code was verified and the window hasn't expired
   if (
     !user.passwordResetVerified ||
@@ -305,43 +329,18 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updatePassword = catchAsync(async (req, res, next) => {
-  const { currentPassword, newPassword, newConfirmPassword } = req.body;
+exports.restrictTo =
+  (...roles) =>
+  (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You do not have permission to perform this action.",
+      });
+    }
 
-  // 1) Check if current password, new password and confirm password are provided
-  if (!currentPassword || !newPassword || !newConfirmPassword) {
-    return next(
-      new AppError(
-        "Please provide your current password, new password and confirm password",
-        400
-      )
-    );
-  }
-
-  // 2) Check if user exists && current password is correct
-  const user = await User.findById(req.user._id).select("+password");
-
-  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
-    return next(new AppError("Current password is incorrect", 401));
-  }
-
-  // 3) Check new password and confirm password match
-  if (newPassword !== newConfirmPassword) {
-    return next(
-      new AppError("New password and confirm password do not match", 400)
-    );
-  }
-
-  // 4) If everything ok, update password
-  user.password = newPassword;
-  user.confirmPassword = newConfirmPassword;
-  await user.save();
-
-  res.status(200).json({
-    status: "success",
-    message: "Password updated successfully",
-  });
-});
+    next();
+  };
 
 exports.protect = catchAsync(async (req, res, next) => {
   // 1) Getting token and check of it's there
@@ -382,12 +381,48 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 5) Check if the account is active
   if (!freshUser.status) {
-    return next(
-      new AppError("Your account is not active. Please contact support.", 403)
-    );
+    return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
   }
 
   // GRANT ACCESS TO PROTECTED ROUTE
   req.user = freshUser;
   next();
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword, newConfirmPassword } = req.body;
+
+  // 1) Check if current password, new password and confirm password are provided
+  if (!currentPassword || !newPassword || !newConfirmPassword) {
+    return next(
+      new AppError(
+        "Please provide your current password, new password and confirm password",
+        400
+      )
+    );
+  }
+
+  // 2) Check if user exists && current password is correct
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
+    return next(new AppError("Current password is incorrect", 401));
+  }
+
+  // 3) Check new password and confirm password match
+  if (newPassword !== newConfirmPassword) {
+    return next(
+      new AppError("New password and confirm password do not match", 400)
+    );
+  }
+
+  // 4) If everything ok, update password
+  user.password = newPassword;
+  user.confirmPassword = newConfirmPassword;
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Password updated successfully",
+  });
 });

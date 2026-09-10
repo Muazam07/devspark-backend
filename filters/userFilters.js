@@ -1,0 +1,81 @@
+const AppError = require("../utils/appError");
+const UserRole = require("../enums/userEnum");
+
+const USER_ROLES = Object.values(UserRole);
+
+const escapeRegExp = (value) => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+const parseBooleanFilter = (value, fieldName) => {
+  if (value === undefined || value === "") return undefined;
+
+  if (typeof value === "boolean") return value;
+
+  if (typeof value === "string") {
+    const normalizedValue = value.toLowerCase();
+
+    if (normalizedValue === "true") return true;
+    if (normalizedValue === "false") return false;
+  }
+
+  throw new AppError(`${fieldName} must be either true or false`, 400);
+};
+
+const parseRoleFilter = (value) => {
+  if (value === undefined || value === "") return undefined;
+
+  if (typeof value === "string") {
+    const normalizedRole = value.trim().toLowerCase();
+
+    if (USER_ROLES.includes(normalizedRole)) return normalizedRole;
+  }
+
+  throw new AppError("Role must be either user or admin", 400);
+};
+
+const userFilters = ({ search, role, emailVerified, status }) => {
+  const filter = {};
+
+  if (search !== undefined && typeof search !== "string") {
+    throw new AppError("Search must be text", 400);
+  }
+
+  const normalizedSearch = search?.trim() || "";
+
+  if (normalizedSearch.length > 0 && normalizedSearch.length < 3) {
+    throw new AppError("Search must contain at least 3 characters", 400);
+  }
+
+  const searchTerms = normalizedSearch.split(/\s+/).filter(Boolean);
+
+  if (searchTerms.length > 0) {
+    filter.$and = searchTerms.map((term) => {
+      const namePattern = new RegExp(escapeRegExp(term), "i");
+
+      return {
+        $or: [{ firstName: namePattern }, { lastName: namePattern }],
+      };
+    });
+  }
+
+  const userRole = parseRoleFilter(role);
+  const isEmailVerified = parseBooleanFilter(emailVerified, "Email verified");
+  const userStatus = parseBooleanFilter(status, "Status");
+
+  if (userRole !== undefined) {
+    filter.role = userRole;
+  }
+
+  if (isEmailVerified !== undefined) {
+    filter.isEmailVerified = isEmailVerified;
+  }
+
+  if (userStatus !== undefined) {
+    filter.status = userStatus;
+  }
+
+  return filter;
+};
+
+module.exports = userFilters;

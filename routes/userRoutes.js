@@ -2,24 +2,31 @@ const express = require("express");
 // Custom Imports
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
+const UserRole = require("../enums/userEnum");
 
 const router = express.Router();
 
 // AUTH ROUTES
 router.post("/signup", authController.signup);
+router.post("/verify-code", authController.verifyCode);
+router.post("/resend-verification-code", authController.resendVerificationCode);
 router.post("/login", authController.login);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
 
-router.post("/verify-code", authController.verifyCode);
-router.post("/resend-verification-code", authController.resendVerificationCode);
-
 // PROTECTED ROUTES
 router.use(authController.protect);
 
-router.get("/:id", userController.getUser);
+router.get("/", userController.getAllUsers);
 router.put("/update-user", userController.updateUser);
 router.patch("/update-password", authController.updatePassword);
-router.patch("/update-user-status", userController.updateUserStatus);
+// todo: For Admin Only
+router.patch(
+  "/:id/status",
+  authController.restrictTo(UserRole.ADMIN),
+  userController.updateUserStatus
+);
+// todo: For Admin Only
+router.get("/:id", userController.getUser);
 
 module.exports = router;

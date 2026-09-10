@@ -1,6 +1,7 @@
 const AppError = require("../utils/appError");
+const UserRole = require("../enums/userRole");
 
-const USER_ROLES = ["user", "admin"];
+const USER_ROLES = Object.values(UserRole);
 
 const escapeRegExp = (value) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

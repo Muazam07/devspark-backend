@@ -2,6 +2,7 @@ const express = require("express");
 // Custom Imports
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
+const UserRole = require("../enums/userRole");
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.patch("/update-password", authController.updatePassword);
 // todo: For Admin Only
 router.patch(
   "/:id/status",
-  authController.restrictTo("admin"),
+  authController.restrictTo(UserRole.ADMIN),
   userController.updateUserStatus
 );
 // todo: For Admin Only

@@ -2,6 +2,8 @@
 
 Always follow the formatting rules defined in the project's `.prettierrc` file. Before generating, modifying, or refactoring code, ensure that all code adheres to the Prettier configuration in the repository. Do not use personal or default formatting preferences when a `.prettierrc` file is present.
 
+After adding or modifying code, automatically run `npm run format` before completing the task. The user should not need to request formatting separately. If the user explicitly instructs you not to run commands, respect that instruction and ensure the changes manually follow `.prettierrc` instead.
+
 
 ## File Size and Splitting
 

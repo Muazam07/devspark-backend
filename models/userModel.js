@@ -23,11 +23,6 @@ const userSchema = new mongoose.Schema(
       minlength: 2,
       required: [true, "Please tell us your last name"],
     },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
-    },
     email: {
       type: String,
       unique: true,
@@ -53,18 +48,23 @@ const userSchema = new mongoose.Schema(
       },
     },
     passwordChangedAt: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
     },
     status: {
       type: Boolean,
       default: false,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
     emailVerificationCode: String,
     emailVerificationExpires: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
     passwordResetCode: String,
     passwordResetCodeExpires: Date,
     passwordResetVerified: Boolean,

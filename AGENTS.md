@@ -27,3 +27,8 @@ router.get("/:id", userController.getUser);
 ```
 
 Keep the corresponding controller functions in the same logical order as their routes. After adding, removing, or reorganizing APIs, compare `userRoutes` with `userController` and confirm that every route has its corresponding controller function, with both files following the same order.
+
+
+## Schema and Model Field Ordering
+
+Always organize schema/model fields in a logical, industry-standard order. Put `id` first, then group related fields by purpose, such as profile, authentication, authorization, verification, and security. Keep the ordering consistent across all models.

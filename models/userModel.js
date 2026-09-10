@@ -24,9 +24,9 @@ const userSchema = new mongoose.Schema(
       required: [true, "Please tell us your last name"],
     },
     role: {
-        type: String,
-        enum: ["user", "admin"],
-        default: "user",
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
     },
     email: {
       type: String,

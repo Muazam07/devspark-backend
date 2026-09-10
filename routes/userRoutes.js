@@ -19,7 +19,13 @@ router.use(authController.protect);
 router.get("/", userController.getAllUsers);
 router.put("/update-user", userController.updateUser);
 router.patch("/update-password", authController.updatePassword);
-router.patch("/:id/status", userController.updateUserStatus);
+// todo: For Admin Only
+router.patch(
+  "/:id/status",
+  authController.restrictTo("admin"),
+  userController.updateUserStatus
+);
+// todo: For Admin Only
 router.get("/:id", userController.getUser);
 
 module.exports = router;

@@ -1,5 +1,7 @@
 const AppError = require("../utils/appError");
 
+const USER_ROLES = ["user", "admin"];
+
 const escapeRegExp = (value) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
@@ -19,7 +21,19 @@ const parseBooleanFilter = (value, fieldName) => {
   throw new AppError(`${fieldName} must be either true or false`, 400);
 };
 
-const userFilters = ({ search, emailVerified, status }) => {
+const parseRoleFilter = (value) => {
+  if (value === undefined || value === "") return undefined;
+
+  if (typeof value === "string") {
+    const normalizedRole = value.trim().toLowerCase();
+
+    if (USER_ROLES.includes(normalizedRole)) return normalizedRole;
+  }
+
+  throw new AppError("Role must be either user or admin", 400);
+};
+
+const userFilters = ({ search, role, emailVerified, status }) => {
   const filter = {};
 
   if (search !== undefined && typeof search !== "string") {
@@ -44,8 +58,13 @@ const userFilters = ({ search, emailVerified, status }) => {
     });
   }
 
+  const userRole = parseRoleFilter(role);
   const isEmailVerified = parseBooleanFilter(emailVerified, "Email verified");
   const userStatus = parseBooleanFilter(status, "Status");
+
+  if (userRole !== undefined) {
+    filter.role = userRole;
+  }
 
   if (isEmailVerified !== undefined) {
     filter.isEmailVerified = isEmailVerified;

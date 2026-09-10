@@ -202,7 +202,17 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 3) If everything ok, send token to client
+  // 3) Check if the account is active
+  if (!user.status) {
+    return next(
+      new AppError(
+        "Your account is inactive. Please contact an administrator.",
+        403
+      )
+    );
+  }
+
+  // 4) If everything ok, send token to client
   createSendToken(user, 200, res);
 });
 

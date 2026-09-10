@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
 // Custom Imports
-const UserRole = require("../enums/userRole");
+const UserRole = require("../enums/userEnum");
 
 const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const PASSWORD_RESET_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes

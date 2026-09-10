@@ -2,7 +2,7 @@ const express = require("express");
 // Custom Imports
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
-const UserRole = require("../enums/userRole");
+const UserRole = require("../enums/userEnum");
 
 const router = express.Router();
 

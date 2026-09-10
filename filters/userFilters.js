@@ -1,5 +1,5 @@
 const AppError = require("../utils/appError");
-const UserRole = require("../enums/userRole");
+const UserRole = require("../enums/userEnum");
 
 const USER_ROLES = Object.values(UserRole);
 

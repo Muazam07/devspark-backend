@@ -6,7 +6,10 @@ const paginate = require("../utils/paginate");
 const User = require("../models/userModel");
 
 exports.getAllUsers = catchAsync(async (req, res, next) => {
-  const filter = userFilters(req.query);
+  const filter = {
+    ...userFilters(req.query),
+    _id: { $ne: req.user._id },
+  };
   const usersQuery = User.find(filter).sort({ createdAt: -1, _id: -1 });
   const countQuery = User.countDocuments(filter);
   const { documents: users, pagination } = await paginate({

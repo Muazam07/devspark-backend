@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
+// Custom Imports
+const UserRole = require("../enums/userRole");
 
 const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const PASSWORD_RESET_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
@@ -50,8 +52,8 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: Date,
     role: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      enum: Object.values(UserRole),
+      default: UserRole.USER,
     },
     status: {
       type: Boolean,

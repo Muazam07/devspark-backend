@@ -36,3 +36,7 @@ Always organize schema/model fields in a logical, industry-standard order. Put `
 ## Inactive User Access
 
 Inactive users must not be able to access or use any API across the entire system.
+
+## Project Structure
+
+Keep enums, models, controllers, and routes in separate folders, with each enum and controller in its own file.

@@ -32,3 +32,7 @@ Keep the corresponding controller functions in the same logical order as their r
 ## Schema and Model Field Ordering
 
 Always organize schema/model fields in a logical, industry-standard order. Put `id` first, then group related fields by purpose, such as profile, authentication, authorization, verification, and security. Keep the ordering consistent across all models.
+
+## Inactive User Access
+
+Inactive users must not be able to access or use any API across the entire system.

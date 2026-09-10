@@ -10,6 +10,17 @@ const EmailVerificationTemplate = require("../templates/emailVerificationTemplat
 
 const ACCOUNT_VERIFICATION_SUBJECT = "DevsPark Account Verification";
 const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
+const INACTIVE_ACCOUNT_MESSAGE =
+  "Your account is inactive. Please contact an administrator.";
+
+const rejectInactiveAccount = (user, next) => {
+  if (user.isEmailVerified && !user.status) {
+    next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
+    return true;
+  }
+
+  return false;
+};
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -87,6 +98,8 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     return next(new AppError("No account found with that email", 404));
   }
 
+  if (rejectInactiveAccount(user, next)) return;
+
   const hashedCode = crypto
     .createHash("sha256")
     .update(String(code))
@@ -146,8 +159,10 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
     return next(new AppError("No account found with that email", 404));
   }
 
+  if (rejectInactiveAccount(user, next)) return;
+
   // 3) Already verified users don't need a new code
-  if (user.status) {
+  if (user.isEmailVerified) {
     return next(new AppError("This email is already verified", 400));
   }
 
@@ -204,12 +219,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // 3) Check if the account is active
   if (!user.status) {
-    return next(
-      new AppError(
-        "Your account is inactive. Please contact an administrator.",
-        403
-      )
-    );
+    return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
   }
 
   // 4) If everything ok, send token to client
@@ -228,6 +238,8 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
+
+  if (rejectInactiveAccount(user, next)) return;
 
   // 3) If a previously sent code hasn't expired yet, don't generate a new one
   if (user.passwordResetCode && user.passwordResetCodeExpires > Date.now()) {
@@ -290,6 +302,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
+
+  if (rejectInactiveAccount(user, next)) return;
 
   // 4) Check the code was verified and the window hasn't expired
   if (
@@ -367,9 +381,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 5) Check if the account is active
   if (!freshUser.status) {
-    return next(
-      new AppError("Your account is not active. Please contact support.", 403)
-    );
+    return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
   }
 
   // GRANT ACCESS TO PROTECTED ROUTE

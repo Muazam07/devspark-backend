@@ -23,6 +23,11 @@ const userSchema = new mongoose.Schema(
       minlength: 2,
       required: [true, "Please tell us your last name"],
     },
+    role: {
+        type: String,
+        enum: ["user", "admin"],
+        default: "user",
+    },
     email: {
       type: String,
       unique: true,

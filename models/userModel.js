@@ -1,6 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
-const UserRole = require("../enums/userEnum");
+const UserEnum = require("../enums/userEnum");
 
 const hiddenAttributes = [
   "password",
@@ -59,9 +59,9 @@ const User = sequelize.define(
     },
     passwordChangedAt: DataTypes.DATE,
     role: {
-      type: DataTypes.ENUM(...Object.values(UserRole)),
+      type: DataTypes.ENUM(UserEnum.USER, UserEnum.ADMIN),
       allowNull: false,
-      defaultValue: UserRole.USER,
+      defaultValue: UserEnum.USER,
     },
     status: {
       type: DataTypes.BOOLEAN,

@@ -2,20 +2,19 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
+const {
+  ACCOUNT_VERIFICATION_SUBJECT,
+  PASSWORD_RESET_SUBJECT,
+  INACTIVE_ACCOUNT_MESSAGE,
+  UNVERIFIED_ACCOUNT_MESSAGE,
+  VERIFICATION_CODE_EXPIRES_MS,
+  PASSWORD_HASH_ROUNDS,
+} = require("../enums/userEnum");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/userModel");
 const sendEmail = require("../mailer");
 const EmailVerificationTemplate = require("../templates/emailVerificationTemplate");
-
-const ACCOUNT_VERIFICATION_SUBJECT = "DevsPark Account Verification";
-const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
-const INACTIVE_ACCOUNT_MESSAGE =
-  "Your account is inactive. Please contact an administrator.";
-const UNVERIFIED_ACCOUNT_MESSAGE =
-  "Your account is inactive. Please activate your account.";
-const VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000;
-const PASSWORD_HASH_ROUNDS = 10;
 
 const normalizeEmail = (email) =>
   typeof email === "string" ? email.trim().toLowerCase() : email;

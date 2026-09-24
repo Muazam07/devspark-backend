@@ -1,8 +1,8 @@
 const { Op } = require("sequelize");
 const AppError = require("../utils/appError");
-const UserRole = require("../enums/userEnum");
+const UserEnum = require("../enums/userEnum");
 
-const USER_ROLES = Object.values(UserRole);
+const USER_ROLES = [UserEnum.USER, UserEnum.ADMIN];
 
 const escapeLikePattern = (value) => value.replace(/[\\%_]/g, "\\$&");
 

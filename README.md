@@ -30,6 +30,9 @@ npm install
 npm run dev
 ```
 
+The development command starts the API with PM2 and watches the project for
+file changes, restarting the process automatically when needed.
+
 The API defaults to `http://localhost:8000`. A database readiness endpoint is
 available at `GET /health`.
 

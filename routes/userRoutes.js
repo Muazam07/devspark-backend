@@ -1,7 +1,7 @@
 const express = require("express");
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
-const UserRole = require("../enums/userEnum");
+const UserEnum = require("../enums/userEnum");
 const { authLimiter } = require("../middlewares/rateLimiters");
 const validateUuid = require("../middlewares/validateUuid");
 
@@ -29,7 +29,7 @@ router.patch("/update-password", authController.updatePassword);
 // todo: For Admin Only
 router.patch(
   "/:id/status",
-  authController.restrictTo(UserRole.ADMIN),
+  authController.restrictTo(UserEnum.ADMIN),
   userController.updateUserStatus
 );
 // todo: For Admin Only

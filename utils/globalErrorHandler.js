@@ -1,70 +1,68 @@
+const {
+  ForeignKeyConstraintError,
+  UniqueConstraintError,
+  ValidationError,
+} = require("sequelize");
 const AppError = require("./appError");
+const requestContext = require("../config/requestContext");
+const describeError = require("./describeError");
 
-const handleCastErrorDB = () => {
-  return new AppError("User not found", 404);
-};
-
-const handleDuplicateFieldsDB = (err) => {
-  const field = Object.keys(err.keyValue)[0];
+const handleUniqueConstraintError = (error) => {
+  const field = error.errors?.[0]?.path || "Value";
   const label = field.charAt(0).toUpperCase() + field.slice(1);
-  return new AppError(`${label} already in use.`, 400);
+  return new AppError(`${label} is already in use.`, 409);
 };
 
-const handleValidationErrorDB = (err) => {
-  const errors = Object.values(err.errors).map((el) => el.message);
-  const message = `Invalid input data. ${errors.join(". ")}`;
-  return new AppError(message, 400);
+const handleValidationError = (error) => {
+  const messages = [...new Set(error.errors.map((item) => item.message))];
+  return new AppError(`Invalid input data. ${messages.join(". ")}`, 400);
 };
 
-const handleJWTError = () =>
-  new AppError("Invalid token. Please log in again!", 401);
-
-const handleJWTExpiredError = () =>
-  new AppError("Your token has expired! Please log in again.", 401);
-
-const sendErrorDev = (err, res) => {
-  res.status(err.statusCode).json({
-    status: err.status,
-    message: err.message,
-    error: err,
-    stack: err.stack,
-  });
-};
-
-const sendErrorProd = (err, res) => {
-  // Operational, trusted error: send message to client
-  if (err.isOperational) {
-    return res.status(err.statusCode).json({
-      status: err.status,
-      message: err.message,
-    });
+const normalizeError = (error) => {
+  if (error instanceof UniqueConstraintError) {
+    return handleUniqueConstraintError(error);
+  }
+  if (error instanceof ValidationError) return handleValidationError(error);
+  if (error instanceof ForeignKeyConstraintError) {
+    return new AppError("The related resource does not exist.", 400);
+  }
+  if (
+    error instanceof SyntaxError &&
+    error.status === 400 &&
+    Object.prototype.hasOwnProperty.call(error, "body")
+  ) {
+    return new AppError("The request body contains invalid JSON.", 400);
+  }
+  if (error.type === "entity.too.large") {
+    return new AppError("The request body is too large.", 413);
+  }
+  if (error.name === "JsonWebTokenError") {
+    return new AppError("Invalid token. Please log in again!", 401);
+  }
+  if (error.name === "TokenExpiredError") {
+    return new AppError("Your token has expired. Please log in again.", 401);
   }
 
-  // Programming or other unknown error: don't leak error details
-  console.error("ERROR 🔥", err);
-
-  res.status(500).json({
-    status: "error",
-    message: "Something went wrong! Please try again later.",
-  });
+  return error;
 };
 
-module.exports = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || "error";
+module.exports = (error, req, res, next) => {
+  const normalizedError = normalizeError(error);
+  const statusCode = normalizedError.statusCode || 500;
+  const status = normalizedError.status || "error";
 
-  // Translate known MongoDB / Mongoose / JWT errors into a friendly
-  // AppError so the frontend never sees the raw driver error.
-  let error = err;
-  if (error.name === "CastError") error = handleCastErrorDB(error);
-  if (error.code === 11000) error = handleDuplicateFieldsDB(error);
-  if (error.name === "ValidationError") error = handleValidationErrorDB(error);
-  if (error.name === "JsonWebTokenError") error = handleJWTError();
-  if (error.name === "TokenExpiredError") error = handleJWTExpiredError();
+  const isOperational = Boolean(normalizedError.isOperational);
+  res.locals.error = describeError(
+    error,
+    requestContext.get()?.handlerLocation
+  );
+  if (!isOperational) res.err = error;
 
-  if (process.env.NODE_ENV === "development") {
-    sendErrorDev(error, res);
-  } else {
-    sendErrorProd(error, res);
-  }
+  res.status(statusCode).json({
+    status,
+    message: normalizedError.isOperational
+      ? normalizedError.message
+      : "Something went wrong. Please try again later.",
+    requestId: req.id,
+  });
 };

@@ -4,7 +4,6 @@ const parsePositiveInteger = (value, fallback, fieldName) => {
   if (value === undefined) return fallback;
 
   const parsedValue = Number(value);
-
   if (!Number.isInteger(parsedValue) || parsedValue < 1) {
     throw new AppError(`${fieldName} must be a positive whole number`, 400);
   }
@@ -13,8 +12,9 @@ const parsePositiveInteger = (value, fallback, fieldName) => {
 };
 
 const paginate = async ({
-  query,
-  countQuery,
+  model,
+  where,
+  order,
   page: pageValue,
   limit: limitValue,
   defaultLimit = 10,
@@ -28,11 +28,13 @@ const paginate = async ({
     throw new AppError(`Limit cannot be greater than ${maxLimit}`, 400);
   }
 
-  const skip = (page - 1) * limit;
-  const [documents, totalResults] = await Promise.all([
-    query.skip(skip).limit(limit),
-    countQuery,
-  ]);
+  const { rows: documents, count: totalResults } = await model.findAndCountAll({
+    where,
+    order,
+    limit,
+    offset: (page - 1) * limit,
+    distinct: true,
+  });
 
   return {
     documents,

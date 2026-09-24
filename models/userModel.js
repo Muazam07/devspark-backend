@@ -1,199 +1,122 @@
-const crypto = require("crypto");
-const mongoose = require("mongoose");
-const validator = require("validator");
-const bcrypt = require("bcryptjs");
-// Custom Imports
-const UserRole = require("../enums/userEnum");
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/database");
+const UserEnum = require("../enums/userEnum");
 
-const EMAIL_VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
-const PASSWORD_RESET_CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
+const hiddenAttributes = [
+  "password",
+  "passwordChangedAt",
+  "emailVerificationCode",
+  "emailVerificationExpires",
+  "passwordResetToken",
+  "passwordResetExpires",
+  "passwordResetCode",
+  "passwordResetCodeExpires",
+  "passwordResetVerified",
+];
 
-const userSchema = new mongoose.Schema(
+const User = sequelize.define(
+  "User",
   {
     id: {
-      type: mongoose.Schema.Types.UUID, // stored as BSON Binary subtype 4
-      default: () => crypto.randomUUID(),
-      unique: true,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
     },
     firstName: {
-      type: String,
-      minlength: 2,
-      required: [true, "Please tell us your first name"],
-    },
-    lastName: {
-      type: String,
-      minlength: 2,
-      required: [true, "Please tell us your last name"],
-    },
-    email: {
-      type: String,
-      unique: true,
-      lowercase: true,
-      required: [true, "Please provide your email"],
-      validate: [validator.isEmail, "Please provide a valid email"],
-    },
-    password: {
-      type: String,
-      minlength: 8,
-      required: [true, "Please provide a password"],
-      select: false,
-    },
-    confirmPassword: {
-      type: String,
-      required: [true, "Please confirm your password"],
-      // This only works on CREATE and SAVE!!!
+      type: DataTypes.STRING(100),
+      allowNull: false,
       validate: {
-        validator: function (el) {
-          return el === this.password;
-        },
-        message: "Passwords are not the same!",
+        notNull: { msg: "Please tell us your first name" },
+        notEmpty: { msg: "Please tell us your first name" },
+        len: { args: [2, 100], msg: "First name must contain 2 characters" },
       },
     },
-    passwordChangedAt: Date,
+    lastName: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      validate: {
+        notNull: { msg: "Please tell us your last name" },
+        notEmpty: { msg: "Please tell us your last name" },
+        len: { args: [2, 100], msg: "Last name must contain 2 characters" },
+      },
+    },
+    email: {
+      type: DataTypes.STRING(320),
+      allowNull: false,
+      unique: true,
+      set(value) {
+        this.setDataValue("email", value?.trim().toLowerCase());
+      },
+      validate: {
+        notNull: { msg: "Please provide your email" },
+        notEmpty: { msg: "Please provide your email" },
+        isEmail: { msg: "Please provide a valid email" },
+      },
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    passwordChangedAt: DataTypes.DATE,
     role: {
-      type: String,
-      enum: Object.values(UserRole),
-      default: UserRole.USER,
+      type: DataTypes.ENUM(UserEnum.USER, UserEnum.ADMIN),
+      allowNull: false,
+      defaultValue: UserEnum.USER,
     },
     status: {
-      type: Boolean,
-      default: false,
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
     isEmailVerified: {
-      type: Boolean,
-      default: false,
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
-    emailVerificationCode: String,
-    emailVerificationExpires: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
-    passwordResetCode: String,
-    passwordResetCodeExpires: Date,
-    passwordResetVerified: Boolean,
+    emailVerificationCode: DataTypes.STRING(64),
+    emailVerificationExpires: DataTypes.DATE,
+    passwordResetToken: DataTypes.STRING(64),
+    passwordResetExpires: DataTypes.DATE,
+    passwordResetCode: DataTypes.STRING(64),
+    passwordResetCodeExpires: DataTypes.DATE,
+    passwordResetVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
   },
   {
-    timestamps: true,
+    tableName: "users",
+    defaultScope: {
+      attributes: { exclude: hiddenAttributes },
+    },
+    scopes: {
+      withPassword: {
+        attributes: { include: ["password", "passwordChangedAt"] },
+      },
+      withVerificationFields: {
+        attributes: { include: hiddenAttributes },
+      },
+    },
+    indexes: [
+      { unique: true, fields: ["email"] },
+      { fields: ["role"] },
+      { fields: ["status"] },
+      { fields: ["created_at"] },
+    ],
   }
 );
 
-// Strip internal/sensitive fields from every JSON response
-userSchema.set("toJSON", {
-  transform(doc, ret) {
-    delete ret._id;
-    delete ret.__v;
-    delete ret.password;
-    delete ret.confirmPassword;
-    delete ret.passwordChangedAt;
-    delete ret.passwordResetToken;
-    delete ret.passwordResetExpires;
-    delete ret.passwordResetCode;
-    delete ret.passwordResetCodeExpires;
-    delete ret.passwordResetVerified;
-    delete ret.emailVerificationCode;
-    delete ret.emailVerificationExpires;
-    delete ret.createdAt;
-    delete ret.updatedAt;
-    return ret;
-  },
-});
+User.prototype.toJSON = function () {
+  const values = { ...this.get() };
 
-// Password Hashing
-userSchema.pre("save", async function () {
-  // Only hash the password if it is new or has been modified
-  if (!this.isModified("password")) return;
-
-  // Hash the password with cost of 12
-  this.password = await bcrypt.hash(this.password, 12);
-
-  // Delete confirmPassword field
-  this.confirmPassword = undefined;
-});
-
-// Password Changed At
-userSchema.pre("save", function () {
-  // Only run this function if password was actually modified
-  if (!this.isModified("password") || this.isNew) return;
-
-  // Subtract 1 second to make sure the token is always created after the password has been changed
-  this.passwordChangedAt = Date.now() - 1000;
-});
-
-// Instance method
-userSchema.methods.correctPassword = async function (
-  candidatePassword,
-  userPassword
-) {
-  return await bcrypt.compare(candidatePassword, userPassword);
-};
-
-// Change password after reset
-userSchema.methods.changePasswordAfter = function (JWTTimestamp) {
-  if (this.passwordChangedAt) {
-    const changedTimestamp = parseInt(
-      this.passwordChangedAt.getTime() / 1000,
-      10 // base 10
-    );
-    return JWTTimestamp < changedTimestamp; // 100 < 200
+  for (const attribute of hiddenAttributes) {
+    delete values[attribute];
   }
+  delete values.createdAt;
+  delete values.updatedAt;
 
-  // False means NOT changed
-  return false;
+  return values;
 };
 
-// Create password reset token
-userSchema.methods.createPasswordResetToken = function () {
-  // create random string
-  const resetToken = crypto.randomBytes(32).toString("hex");
-
-  // encrypt the token
-  this.passwordResetToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-
-  // set the token expire time
-  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-  // return the unencrypted token
-  return resetToken;
-};
-
-// Create email verification code
-userSchema.methods.createEmailVerificationCode = function () {
-  // generate 6-digit code
-  const code = crypto.randomInt(100000, 1000000).toString();
-
-  // encrypt the code
-  this.emailVerificationCode = crypto
-    .createHash("sha256")
-    .update(code)
-    .digest("hex");
-
-  // set the code expire time
-  this.emailVerificationExpires =
-    Date.now() + EMAIL_VERIFICATION_CODE_EXPIRES_MS;
-
-  // return the unencrypted code
-  return code;
-};
-
-// Create password reset OTP (forgot-password / authenticated password update)
-userSchema.methods.createPasswordResetCode = function () {
-  // generate 6-digit code
-  const code = crypto.randomInt(100000, 1000000).toString();
-
-  // encrypt the code
-  this.passwordResetCode = crypto
-    .createHash("sha256")
-    .update(code)
-    .digest("hex");
-
-  // set the code expire time
-  this.passwordResetCodeExpires = Date.now() + PASSWORD_RESET_CODE_EXPIRES_MS;
-
-  // return the unencrypted code
-  return code;
-};
-
-const User = mongoose.model("User", userSchema);
 module.exports = User;

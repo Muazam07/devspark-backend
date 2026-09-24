@@ -8,7 +8,10 @@ exports.middleware = (req, res, next) => {
 
 exports.get = () => storage.getStore();
 
-exports.setHandler = (handler) => {
+exports.setHandler = (handler, handlerLocation) => {
   const context = storage.getStore();
-  if (context) context.handler = handler;
+  if (!context) return;
+
+  context.handler = handler;
+  context.handlerLocation = handlerLocation;
 };

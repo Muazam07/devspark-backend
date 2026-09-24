@@ -10,8 +10,8 @@ module.exports = pinoHttp({
     res.setHeader("x-request-id", requestId);
     return requestId;
   },
-  customLogLevel(req, res, error) {
-    if (error || res.statusCode >= 500) return "error";
+  customLogLevel(req, res) {
+    if (res.statusCode >= 500) return "error";
     if (res.statusCode >= 400) return "warn";
     return "info";
   },
@@ -31,7 +31,10 @@ module.exports = pinoHttp({
   customSuccessMessage(req, res, responseTime) {
     return `HTTP ${req.method} ${req.url} → ${res.statusCode} (${responseTime} ms)`;
   },
-  customErrorMessage(req, res) {
-    return `HTTP ${req.method} ${req.url} → ${res.statusCode} (failed)`;
+  customErrorMessage(req, res, error, responseTime) {
+    return `HTTP ${req.method} ${req.url} → ${res.statusCode} (${responseTime} ms)`;
+  },
+  customProps(req, res) {
+    return res.locals?.error ? { error: res.locals.error } : {};
   },
 });

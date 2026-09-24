@@ -8,6 +8,7 @@ const requestContext = require("./config/requestContext");
 const { apiLimiter } = require("./middlewares/rateLimiters");
 const userRouter = require("./routes/userRoutes");
 const AppError = require("./utils/appError");
+const describeError = require("./utils/describeError");
 const globalErrorHandler = require("./utils/globalErrorHandler");
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "*")
@@ -58,7 +59,7 @@ app.get("/health", async (req, res) => {
       services: { database: "connected" },
     });
   } catch (error) {
-    req.log.error({ err: error }, "Database health check failed");
+    res.locals.error = describeError(error);
     res.status(503).json({
       status: "error",
       message: "The service is temporarily unavailable.",

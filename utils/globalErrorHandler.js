@@ -4,7 +4,8 @@ const {
   ValidationError,
 } = require("sequelize");
 const AppError = require("./appError");
-const logger = require("../config/logger");
+const requestContext = require("../config/requestContext");
+const describeError = require("./describeError");
 
 const handleUniqueConstraintError = (error) => {
   const field = error.errors?.[0]?.path || "Value";
@@ -50,12 +51,12 @@ module.exports = (error, req, res, next) => {
   const statusCode = normalizedError.statusCode || 500;
   const status = normalizedError.status || "error";
 
-  const log = req.log || logger;
-  if (normalizedError.isOperational) {
-    log.debug({ err: error }, "Request rejected");
-  } else {
-    log.error({ err: error }, "Unhandled request error");
-  }
+  const isOperational = Boolean(normalizedError.isOperational);
+  res.locals.error = describeError(
+    error,
+    requestContext.get()?.handlerLocation
+  );
+  if (!isOperational) res.err = error;
 
   res.status(statusCode).json({
     status,

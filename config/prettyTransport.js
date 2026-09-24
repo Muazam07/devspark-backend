@@ -10,6 +10,7 @@ const ignoredKeys = new Set([
   "res",
   "responseTime",
   "err",
+  "error",
 ]);
 
 const eventStyles = {
@@ -82,7 +83,7 @@ const formatContext = (log, colors) => {
     details.push(`${colors.cyan("Request ID")}: ${colors.white(requestId)}`);
   }
 
-  if (log.err?.message) {
+  if (log.err?.message && !log.error) {
     details.push(`${colors.red("Error")}: ${colors.white(log.err.message)}`);
   }
 
@@ -151,13 +152,15 @@ module.exports = (options) =>
       const lines = [`${icon} ${colors.bold(colorizeMessage(message))}`];
 
       if (context) lines.push(`   ${context}`);
-      if (log.err?.stack) {
-        const stackFrames = log.err.stack
-          .split("\n")
-          .filter((line) => line.trim().startsWith("at "))
-          .filter((line) => !/node_modules|\(node:|at node:/.test(line))
-          .map((line) => `     ${colors.dim(line.trim())}`);
-        lines.push(...stackFrames);
+      if (log.error?.message) {
+        lines.push(
+          `   ${colors.red("Error")}: ${colors.white(log.error.message)}`
+        );
+      }
+      if (log.error?.location) {
+        lines.push(
+          `   ${colors.red("Location")}: ${colors.white(log.error.location)}`
+        );
       }
       lines.push(`   ${formatTimestamp(log.time)}`);
 

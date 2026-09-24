@@ -42,6 +42,7 @@ const labels = {
   port: "Port",
   remainingAttempts: "Retries left",
   requestId: "Request ID",
+  userId: "User ID",
   signal: "Signal",
   sql: "SQL",
 };
@@ -67,10 +68,21 @@ const stringify = (value) => {
   }
 };
 
+const keyOrder = ["requestId", "handler", "userId"];
+
+const getKeyOrder = (key) => {
+  const index = keyOrder.indexOf(key);
+  return index === -1 ? keyOrder.length : index;
+};
+
 const formatContext = (log, colors) => {
   const details = [];
 
-  for (const [key, value] of Object.entries(log)) {
+  const orderedEntries = Object.entries(log).sort(
+    ([first], [second]) => getKeyOrder(first) - getKeyOrder(second)
+  );
+
+  for (const [key, value] of orderedEntries) {
     if (ignoredKeys.has(key) || value === undefined || value === null) continue;
 
     details.push(
@@ -88,6 +100,24 @@ const formatContext = (log, colors) => {
   }
 
   return details.join(colors.dim(" • "));
+};
+
+const formatError = (error, colors) => {
+  const field = (label, value) =>
+    value ? `${colors.red(label)}: ${colors.white(value)}` : undefined;
+  const join = (...fields) => fields.filter(Boolean).join(colors.dim(" • "));
+
+  return [
+    field("Error", error.message),
+    join(
+      field("Type", error.type),
+      field("Code", error.code),
+      field("Database", error.database)
+    ),
+    field("Location", error.location),
+  ]
+    .filter(Boolean)
+    .map((line) => `   ${line}`);
 };
 
 const pad = (value) => String(value).padStart(2, "0");
@@ -152,16 +182,7 @@ module.exports = (options) =>
       const lines = [`${icon} ${colors.bold(colorizeMessage(message))}`];
 
       if (context) lines.push(`   ${context}`);
-      if (log.error?.message) {
-        lines.push(
-          `   ${colors.red("Error")}: ${colors.white(log.error.message)}`
-        );
-      }
-      if (log.error?.location) {
-        lines.push(
-          `   ${colors.red("Location")}: ${colors.white(log.error.location)}`
-        );
-      }
+      if (log.error) lines.push(...formatError(log.error, colors));
       lines.push(`   ${formatTimestamp(log.time)}`);
 
       return `${lines.join("\n")}\n`;

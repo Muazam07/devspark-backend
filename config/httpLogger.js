@@ -35,6 +35,9 @@ module.exports = pinoHttp({
     return `HTTP ${req.method} ${req.url} → ${res.statusCode} (${responseTime} ms)`;
   },
   customProps(req, res) {
-    return res.locals?.error ? { error: res.locals.error } : {};
+    return {
+      ...(req.user?.id && { userId: req.user.id }),
+      ...(res.locals?.error && { error: res.locals.error }),
+    };
   },
 });

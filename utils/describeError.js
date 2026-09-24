@@ -27,7 +27,27 @@ const getLocation = (error) => {
     : undefined;
 };
 
+const getType = (error) =>
+  error.name && error.name !== "Error" ? error.name : error.constructor.name;
+
+const getCode = (error) =>
+  error.original?.code || error.parent?.code || error.code;
+
+const getDatabaseOperation = (error) => {
+  const sql = error.sql || error.parent?.sql;
+  if (!sql) return undefined;
+
+  const operation = sql.trim().split(/\s+/)[0].toUpperCase();
+  const table =
+    error.table || sql.match(/(?:INTO|UPDATE|FROM)\s+"?(\w+)"?/i)?.[1];
+
+  return table ? `${operation} ${table}` : operation;
+};
+
 module.exports = (error, fallbackLocation) => ({
   message: getMessage(error),
+  type: getType(error),
+  code: getCode(error),
+  database: getDatabaseOperation(error),
   location: getLocation(error) || fallbackLocation,
 });

@@ -57,8 +57,10 @@ repeatable and reversible.
 
 Application, HTTP request, database lifecycle, email, and process-level failures
 use structured Pino logs. Development output is formatted by `pino-pretty` when
-the process is attached to a terminal. Production logs remain machine-readable
-JSON.
+the application runs in development. Each event displays a colored status icon
+and message, a compact context line, and a local timestamp using the
+`DD-MM-YYYY hh:mm:ss AM/PM GMT+offset` format. Production logs remain
+machine-readable JSON.
 
 Sensitive authorization headers, cookies, and password fields are redacted. Set
 `LOG_LEVEL` to `debug`, `info`, `warn`, or `error`. SQL logging is disabled by

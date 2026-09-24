@@ -5,8 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
-    "server": "nodemon server.js",
+    "dev": "nodemon --quiet server.js",
+    "server": "nodemon --quiet server.js",
     "build": "npm install --legacy-peer-deps",
     "check": "node --check server.js && node -e \"require('./app')\"",
     "db:create": "sequelize-cli db:create",

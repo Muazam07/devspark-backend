@@ -51,7 +51,7 @@ const connectDatabase = async () => {
       host: sequelize.config.host,
       environment: process.env.NODE_ENV || "development",
     },
-    "PostgreSQL connection established"
+    "PostgreSQL connected successfully"
   );
 };
 

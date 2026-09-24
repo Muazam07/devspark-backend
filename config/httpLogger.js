@@ -27,10 +27,10 @@ module.exports = pinoHttp({
       return { statusCode: res.statusCode };
     },
   },
-  customSuccessMessage(req, res) {
-    return `${req.method} ${req.url} completed with ${res.statusCode}`;
+  customSuccessMessage(req, res, responseTime) {
+    return `HTTP ${req.method} ${req.url} → ${res.statusCode} (${responseTime} ms)`;
   },
   customErrorMessage(req, res) {
-    return `${req.method} ${req.url} failed with ${res.statusCode}`;
+    return `HTTP ${req.method} ${req.url} → ${res.statusCode} (failed)`;
   },
 });

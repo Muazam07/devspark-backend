@@ -54,7 +54,7 @@ const startServer = async () => {
     server = app.listen(port, () => {
       logger.info(
         { port, environment: process.env.NODE_ENV || "development" },
-        "Server started"
+        "Server is running successfully"
       );
     });
   } catch (error) {

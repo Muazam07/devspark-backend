@@ -1,19 +1,13 @@
 const pino = require("pino");
+const path = require("path");
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
-const transport =
-  isDevelopment && process.stdout.isTTY
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          singleLine: true,
-          translateTime: "SYS:standard",
-          ignore: "pid,hostname",
-        },
-      }
-    : undefined;
+const transport = isDevelopment
+  ? {
+      target: path.join(__dirname, "prettyTransport.js"),
+    }
+  : undefined;
 
 const logger = pino({
   level: process.env.LOG_LEVEL || (isDevelopment ? "debug" : "info"),

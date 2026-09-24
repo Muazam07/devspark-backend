@@ -12,6 +12,8 @@ const ACCOUNT_VERIFICATION_SUBJECT = "DevsPark Account Verification";
 const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
 const INACTIVE_ACCOUNT_MESSAGE =
   "Your account is inactive. Please contact an administrator.";
+const UNVERIFIED_ACCOUNT_MESSAGE =
+  "Your account is inactive. Please activate your account.";
 const VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000;
 const PASSWORD_HASH_ROUNDS = 10;
 
@@ -266,7 +268,12 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
-  if (!user.status) return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
+  if (!user.status) {
+    const message = user.isEmailVerified
+      ? INACTIVE_ACCOUNT_MESSAGE
+      : UNVERIFIED_ACCOUNT_MESSAGE;
+    return next(new AppError(message, 403));
+  }
 
   createSendToken(user, 200, res);
 });

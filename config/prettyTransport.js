@@ -11,6 +11,7 @@ const ignoredKeys = new Set([
   "responseTime",
   "err",
   "error",
+  "email",
 ]);
 
 const eventStyles = {
@@ -102,6 +103,21 @@ const formatContext = (log, colors) => {
   return details.join(colors.dim(" • "));
 };
 
+const formatEmail = (email, colors, paint) => {
+  const field = (label, value, paintValue) =>
+    `${colors.bold(paint(`${label}:`))} ${paintValue(value)}`;
+  const statusColor =
+    email.status === "Sent" ? rgb(255, 149, 0) : rgb(255, 69, 58);
+  const fields = [field(email.label, email.status, statusColor)];
+
+  if (email.messageId) {
+    fields.push(field("Message ID", email.messageId, colors.white));
+  }
+  if (email.reason) fields.push(field("Reason", email.reason, colors.white));
+
+  return `📧 ${fields.join(colors.bold(paint(" • ")))}`;
+};
+
 const formatError = (error, colors) => {
   const field = (label, value) =>
     value ? `${colors.red(label)}: ${colors.white(value)}` : undefined;
@@ -182,6 +198,8 @@ module.exports = (options) =>
       const lines = [`${icon} ${colors.bold(colorizeMessage(message))}`];
 
       if (context) lines.push(`   ${context}`);
+      if (log.email)
+        lines.push(formatEmail(log.email, colors, colorizeMessage));
       if (log.error) lines.push(...formatError(log.error, colors));
       lines.push(`   ${formatTimestamp(log.time)}`);
 

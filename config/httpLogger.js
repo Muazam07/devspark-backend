@@ -37,6 +37,7 @@ module.exports = pinoHttp({
   customProps(req, res) {
     return {
       ...(req.user?.id && { userId: req.user.id }),
+      ...(res.locals?.context?.email && { email: res.locals.context.email }),
       ...(res.locals?.error && { error: res.locals.error }),
     };
   },

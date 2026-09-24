@@ -127,7 +127,8 @@ exports.signup = catchAsync(async (req, res, next) => {
       newUser.email,
       newUser.firstName,
       ACCOUNT_VERIFICATION_SUBJECT,
-      htmlContent
+      htmlContent,
+      "Verification email"
     );
   } catch (error) {
     newUser.emailVerificationCode = null;
@@ -235,7 +236,8 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
       user.email,
       user.firstName,
       ACCOUNT_VERIFICATION_SUBJECT,
-      htmlContent
+      htmlContent,
+      "Verification email"
     );
   } catch (error) {
     user.emailVerificationCode = null;
@@ -305,7 +307,8 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
       user.email,
       user.firstName,
       PASSWORD_RESET_SUBJECT,
-      htmlContent
+      htmlContent,
+      "Password reset email"
     );
 
     res.status(200).json({

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --quiet server.js",
-    "pm2": "pm2 start server.js --name devspark-backend",
+    "pm2": "pm2 startOrRestart ecosystem.config.js",
     "build": "npm install --legacy-peer-deps",
     "check": "node --check server.js && node -e \"require('./app')\"",
     "format": "prettier --write .",

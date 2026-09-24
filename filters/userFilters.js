@@ -1,15 +1,13 @@
+const { Op } = require("sequelize");
 const AppError = require("../utils/appError");
 const UserRole = require("../enums/userEnum");
 
 const USER_ROLES = Object.values(UserRole);
 
-const escapeRegExp = (value) => {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-};
+const escapeLikePattern = (value) => value.replace(/[\\%_]/g, "\\$&");
 
 const parseBooleanFilter = (value, fieldName) => {
   if (value === undefined || value === "") return undefined;
-
   if (typeof value === "boolean") return value;
 
   if (typeof value === "string") {
@@ -27,7 +25,6 @@ const parseRoleFilter = (value) => {
 
   if (typeof value === "string") {
     const normalizedRole = value.trim().toLowerCase();
-
     if (USER_ROLES.includes(normalizedRole)) return normalizedRole;
   }
 
@@ -35,26 +32,27 @@ const parseRoleFilter = (value) => {
 };
 
 const userFilters = ({ search, role, emailVerified, status }) => {
-  const filter = {};
+  const where = {};
 
   if (search !== undefined && typeof search !== "string") {
     throw new AppError("Search must be text", 400);
   }
 
   const normalizedSearch = search?.trim() || "";
-
   if (normalizedSearch.length > 0 && normalizedSearch.length < 3) {
     throw new AppError("Search must contain at least 3 characters", 400);
   }
 
   const searchTerms = normalizedSearch.split(/\s+/).filter(Boolean);
-
   if (searchTerms.length > 0) {
-    filter.$and = searchTerms.map((term) => {
-      const namePattern = new RegExp(escapeRegExp(term), "i");
+    where[Op.and] = searchTerms.map((term) => {
+      const pattern = `%${escapeLikePattern(term)}%`;
 
       return {
-        $or: [{ firstName: namePattern }, { lastName: namePattern }],
+        [Op.or]: [
+          { firstName: { [Op.iLike]: pattern } },
+          { lastName: { [Op.iLike]: pattern } },
+        ],
       };
     });
   }
@@ -63,19 +61,11 @@ const userFilters = ({ search, role, emailVerified, status }) => {
   const isEmailVerified = parseBooleanFilter(emailVerified, "Email verified");
   const userStatus = parseBooleanFilter(status, "Status");
 
-  if (userRole !== undefined) {
-    filter.role = userRole;
-  }
+  if (userRole !== undefined) where.role = userRole;
+  if (isEmailVerified !== undefined) where.isEmailVerified = isEmailVerified;
+  if (userStatus !== undefined) where.status = userStatus;
 
-  if (isEmailVerified !== undefined) {
-    filter.isEmailVerified = isEmailVerified;
-  }
-
-  if (userStatus !== undefined) {
-    filter.status = userStatus;
-  }
-
-  return filter;
+  return where;
 };
 
 module.exports = userFilters;

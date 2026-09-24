@@ -13,6 +13,9 @@ const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
 const INACTIVE_ACCOUNT_MESSAGE =
   "Your account is inactive. Please contact an administrator.";
 
+const normalizeEmail = (email) =>
+  typeof email === "string" ? email.trim().toLowerCase() : email;
+
 const rejectInactiveAccount = (user, next) => {
   if (user.isEmailVerified && !user.status) {
     next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
@@ -29,9 +32,9 @@ const signToken = (id) => {
 };
 
 const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user._id);
+  const token = signToken(user.id);
 
-  // Sensitive/internal fields are stripped by the User schema's toJSON transform
+  // Sensitive/internal fields are stripped by the User model's toJSON method.
   res.status(statusCode).json({
     status: "success",
     token,
@@ -52,7 +55,7 @@ exports.signup = catchAsync(async (req, res, next) => {
 
   // Generate and send the email verification code
   const verificationCode = newUser.createEmailVerificationCode();
-  await newUser.save({ validateBeforeSave: false });
+  await newUser.save();
 
   try {
     const subject = ACCOUNT_VERIFICATION_SUBJECT;
@@ -60,9 +63,9 @@ exports.signup = catchAsync(async (req, res, next) => {
 
     await sendEmail(newUser.email, newUser.firstName, subject, htmlContent);
   } catch (error) {
-    newUser.emailVerificationCode = undefined;
-    newUser.emailVerificationExpires = undefined;
-    await newUser.save({ validateBeforeSave: false });
+    newUser.emailVerificationCode = null;
+    newUser.emailVerificationExpires = null;
+    await newUser.save();
 
     return next(
       new AppError(
@@ -93,7 +96,9 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
   }
 
   // 2) Check if a user exists with that email
-  const user = await User.findOne({ email });
+  const user = await User.scope("withVerificationFields").findOne({
+    where: { email: normalizeEmail(email) },
+  });
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
@@ -113,9 +118,9 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
   ) {
     user.isEmailVerified = true;
     user.status = true;
-    user.emailVerificationCode = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save({ validateBeforeSave: false });
+    user.emailVerificationCode = null;
+    user.emailVerificationExpires = null;
+    await user.save();
 
     return res.status(200).json({
       status: "success",
@@ -130,10 +135,10 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     user.passwordResetCodeExpires > Date.now()
   ) {
     user.passwordResetVerified = true;
-    user.passwordResetCode = undefined;
-    user.passwordResetCodeExpires = undefined;
-    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-    await user.save({ validateBeforeSave: false });
+    user.passwordResetCode = null;
+    user.passwordResetCodeExpires = null;
+    user.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
 
     return res.status(200).json({
       status: "success",
@@ -154,7 +159,9 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
   }
 
   // 2) Check if a user exists with that email
-  const user = await User.findOne({ email });
+  const user = await User.scope("withVerificationFields").findOne({
+    where: { email: normalizeEmail(email) },
+  });
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
@@ -176,7 +183,7 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
 
   // 5) Generate and send a new verification code
   const verificationCode = user.createEmailVerificationCode();
-  await user.save({ validateBeforeSave: false });
+  await user.save();
 
   try {
     const subject = ACCOUNT_VERIFICATION_SUBJECT;
@@ -184,9 +191,9 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
 
     await sendEmail(user.email, user.firstName, subject, htmlContent);
   } catch (error) {
-    user.emailVerificationCode = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save({ validateBeforeSave: false });
+    user.emailVerificationCode = null;
+    user.emailVerificationExpires = null;
+    await user.save();
 
     return next(
       new AppError(
@@ -211,9 +218,11 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   // 2) Check if user exists && password is correct
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.scope("withPassword").findOne({
+    where: { email: normalizeEmail(email) },
+  });
 
-  if (!user || !(await user.correctPassword(password, user.password))) {
+  if (!user || !(await user.correctPassword(password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
 
@@ -234,7 +243,9 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   }
 
   // 2) Check if user exists
-  const user = await User.findOne({ email });
+  const user = await User.scope("withVerificationFields").findOne({
+    where: { email: normalizeEmail(email) },
+  });
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
@@ -251,8 +262,8 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
   // 4) Generate and send a 6-digit OTP
   const resetCode = user.createPasswordResetCode();
-  user.passwordResetVerified = undefined;
-  await user.save({ validateBeforeSave: false });
+  user.passwordResetVerified = false;
+  await user.save();
 
   try {
     const subject = PASSWORD_RESET_SUBJECT;
@@ -267,9 +278,9 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
       message: "Verification code sent to email!",
     });
   } catch (error) {
-    user.passwordResetCode = undefined;
-    user.passwordResetCodeExpires = undefined;
-    await user.save({ validateBeforeSave: false });
+    user.passwordResetCode = null;
+    user.passwordResetCodeExpires = null;
+    await user.save();
 
     return next(
       new AppError(
@@ -298,7 +309,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   }
 
   // 3) Check if a user exists with that email
-  const user = await User.findOne({ email });
+  const user = await User.scope("withVerificationFields").findOne({
+    where: { email: normalizeEmail(email) },
+  });
   if (!user) {
     return next(new AppError("No account found with that email", 404));
   }
@@ -319,8 +332,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   // 4) Update the password
   user.password = password;
   user.confirmPassword = confirmPassword;
-  user.passwordResetVerified = undefined;
-  user.passwordResetExpires = undefined;
+  user.passwordResetVerified = false;
+  user.passwordResetExpires = null;
   await user.save();
 
   res.status(200).json({
@@ -362,7 +375,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   const decode = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
   // 3) Check if user still exists
-  const freshUser = await User.findById(decode.id);
+  const freshUser = await User.scope("withPassword").findByPk(decode.id);
   if (!freshUser) {
     return next(
       new AppError(
@@ -403,9 +416,9 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   }
 
   // 2) Check if user exists && current password is correct
-  const user = await User.findById(req.user._id).select("+password");
+  const user = await User.scope("withPassword").findByPk(req.user.id);
 
-  if (!user || !(await user.correctPassword(currentPassword, user.password))) {
+  if (!user || !(await user.correctPassword(currentPassword))) {
     return next(new AppError("Current password is incorrect", 401));
   }
 

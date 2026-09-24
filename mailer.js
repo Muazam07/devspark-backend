@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const path = require("path");
+const logger = require("./config/logger");
 
 // CREATE TRANSPORTER
 const transporter = nodemailer.createTransport({
@@ -26,7 +27,7 @@ const sendEmail = async (email, name, subject, htmlContent) => {
     ],
   });
 
-  console.log("Message sent: %s", info.messageId);
+  logger.info({ messageId: info.messageId }, "Transactional email sent");
 };
 
 module.exports = sendEmail;

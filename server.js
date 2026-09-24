@@ -1,41 +1,66 @@
-const mongoose = require("mongoose");
-require("colors");
 require("dotenv").config({ quiet: true });
-// Custom Imports
+
 const app = require("./app");
+const logger = require("./config/logger");
+const { connectDatabase, closeDatabase } = require("./config/database");
 
-process.on("uncaughtException", (err) => {
-  console.log("UNCAUGHT EXCEPTION! 💥 Shutting down...");
-  console.log(err.name, err.message);
+const port = Number(process.env.PORT) || 8000;
+let server;
+let isShuttingDown = false;
 
+const shutdown = async (signal, exitCode = 0) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logger.info({ signal }, "Graceful shutdown started");
+
+  const forceShutdownTimer = setTimeout(() => {
+    logger.fatal("Graceful shutdown timed out");
+    process.exit(1);
+  }, 10000);
+  forceShutdownTimer.unref();
+
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+  }
+
+  try {
+    await closeDatabase();
+  } catch (error) {
+    logger.error({ err: error }, "Failed to close the database connection");
+    exitCode = 1;
+  }
+
+  clearTimeout(forceShutdownTimer);
+  process.exit(exitCode);
+};
+
+process.on("uncaughtException", (error) => {
+  logger.fatal({ err: error }, "Uncaught exception");
   process.exit(1);
 });
 
-const dbURI = process.env.DATABASE;
-
-mongoose.connect(dbURI);
-
-const db = mongoose.connection;
-
-db.on("error", (error) => {
-  console.error("Connection error:", error);
+process.on("unhandledRejection", (error) => {
+  logger.fatal({ err: error }, "Unhandled promise rejection");
+  void shutdown("unhandledRejection", 1);
 });
 
-db.once("open", () => {
-  console.log(`Connected to MongoDB`.cyan.underline.bold);
-  console.log("Environment:", `${process.env.NODE_ENV}`.yellow);
-});
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
 
-const port = process.env.PORT || 8000;
-const server = app.listen(port, () => {
-  console.log(`Server in running on port ${port}`);
-});
-
-process.on("unhandledRejection", (err) => {
-  console.log("UNHANDLED REJECTION! 💥 Shutting down...");
-  console.log(err.name, err.message);
-
-  server.close(() => {
+const startServer = async () => {
+  try {
+    await connectDatabase();
+    server = app.listen(port, () => {
+      logger.info(
+        { port, environment: process.env.NODE_ENV || "development" },
+        "Server started"
+      );
+    });
+  } catch (error) {
+    logger.fatal({ err: error }, "Application startup failed");
     process.exit(1);
-  });
-});
+  }
+};
+
+void startServer();

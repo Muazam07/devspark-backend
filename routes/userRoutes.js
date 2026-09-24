@@ -3,16 +3,23 @@ const express = require("express");
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
 const UserRole = require("../enums/userEnum");
+const { authLimiter } = require("../middlewares/rateLimiters");
+const validateUuid = require("../middlewares/validateUuid");
 
 const router = express.Router();
+router.param("id", validateUuid);
 
 // AUTH ROUTES
-router.post("/signup", authController.signup);
-router.post("/verify-code", authController.verifyCode);
-router.post("/resend-verification-code", authController.resendVerificationCode);
-router.post("/login", authController.login);
-router.post("/forgot-password", authController.forgotPassword);
-router.post("/reset-password", authController.resetPassword);
+router.post("/signup", authLimiter, authController.signup);
+router.post("/verify-code", authLimiter, authController.verifyCode);
+router.post(
+  "/resend-verification-code",
+  authLimiter,
+  authController.resendVerificationCode
+);
+router.post("/login", authLimiter, authController.login);
+router.post("/forgot-password", authLimiter, authController.forgotPassword);
+router.post("/reset-password", authLimiter, authController.resetPassword);
 
 // PROTECTED ROUTES
 router.use(authController.protect);

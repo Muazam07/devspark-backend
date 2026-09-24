@@ -18,8 +18,8 @@ const eventStyles = {
     color: "yellow",
   },
   "Server is running successfully": {
-    icon: "🟢",
-    color: "green",
+    icon: "🟣",
+    color: "magenta",
   },
 };
 
@@ -113,6 +113,16 @@ const formatTimestamp = (epoch) => {
 const getStyle = (log, message) =>
   eventStyles[message] || levelStyles[log.level] || levelStyles[30];
 
+const rgb = (r, g, b) => (text) => `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
+
+const HTTP_STATUS_REGEX = /^HTTP \S+ \S+ → (\d{3})/;
+
+const getHttpStyle = (statusCode, colors) => {
+  if (statusCode >= 500) return { icon: "🔴", paint: rgb(255, 69, 58) };
+  if (statusCode >= 400) return { icon: "🟠", paint: rgb(255, 149, 0) };
+  return { icon: "🟢", paint: colors.green };
+};
+
 module.exports = (options) =>
   pretty({
     ...options,
@@ -125,12 +135,20 @@ module.exports = (options) =>
     customPrettifiers: {
       level: () => "",
     },
-    messageFormat(log, messageKey, levelLabel, { colors }) {
+    messageFormat(log, messageKey, _levelLabel, { colors }) {
       const message = log[messageKey] || "Log event";
       const context = formatContext(log, colors);
-      const style = getStyle(log, message);
-      const colorizeMessage = colors[style.color] || colors.white;
-      const lines = [`${style.icon} ${colors.bold(colorizeMessage(message))}`];
+      const httpMatch = message.match(HTTP_STATUS_REGEX);
+      const { icon, paint: colorizeMessage } = httpMatch
+        ? getHttpStyle(Number(httpMatch[1]), colors)
+        : (() => {
+            const style = getStyle(log, message);
+            return {
+              icon: style.icon,
+              paint: colors[style.color] || colors.white,
+            };
+          })();
+      const lines = [`${icon} ${colors.bold(colorizeMessage(message))}`];
 
       if (context) lines.push(`   ${context}`);
       lines.push(`   ${formatTimestamp(log.time)}`);

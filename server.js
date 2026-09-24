@@ -1,8 +1,8 @@
 require("dotenv").config({ quiet: true });
 
 const app = require("./app");
+const { closeDatabase, connectDatabase } = require("./config/database");
 const logger = require("./config/logger");
-const { connectDatabase, closeDatabase } = require("./config/database");
 
 const port = Number(process.env.PORT) || 8000;
 let server;

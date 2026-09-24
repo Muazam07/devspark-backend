@@ -1,5 +1,7 @@
-const pino = require("pino");
+require("dotenv").config({ quiet: true });
+
 const path = require("path");
+const pino = require("pino");
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 

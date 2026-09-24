@@ -1,7 +1,7 @@
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
-// Custom Imports
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/userModel");
@@ -12,6 +12,8 @@ const ACCOUNT_VERIFICATION_SUBJECT = "DevsPark Account Verification";
 const PASSWORD_RESET_SUBJECT = "DevsPark Password Reset";
 const INACTIVE_ACCOUNT_MESSAGE =
   "Your account is inactive. Please contact an administrator.";
+const VERIFICATION_CODE_EXPIRES_MS = 10 * 60 * 1000;
+const PASSWORD_HASH_ROUNDS = 10;
 
 const normalizeEmail = (email) =>
   typeof email === "string" ? email.trim().toLowerCase() : email;
@@ -25,43 +27,107 @@ const rejectInactiveAccount = (user, next) => {
   return false;
 };
 
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
-  });
+const validatePassword = (password, confirmPassword, labels = {}) => {
+  const passwordLabel = labels.password || "Password";
+  const confirmationLabel = labels.confirmation || "confirm password";
+  const validationErrors = [];
+
+  if (typeof password !== "string") {
+    throw new AppError(`${passwordLabel} is required`, 400);
+  }
+
+  if (password.length < 8)
+    validationErrors.push(`${passwordLabel} must be at least 8 characters.`);
+  if (!/[A-Z]/.test(password))
+    validationErrors.push(`${passwordLabel} must contain an uppercase letter.`);
+  if (!/[a-z]/.test(password))
+    validationErrors.push(`${passwordLabel} must contain a lowercase letter.`);
+  if (!/\d/.test(password))
+    validationErrors.push(`${passwordLabel} must contain a number.`);
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=]/.test(password))
+    validationErrors.push(`${passwordLabel} must contain a special character.`);
+  if (password.trim() !== password)
+    validationErrors.push(`${passwordLabel} cannot begin or end with spaces.`);
+
+  if (validationErrors.length > 0) {
+    throw new AppError(validationErrors.join(" "), 400);
+  }
+
+  if (password !== confirmPassword) {
+    throw new AppError(
+      `${passwordLabel} and ${confirmationLabel} do not match`,
+      400
+    );
+  }
 };
 
-const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user.id);
+const hashPassword = (password) => bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
 
-  // Sensitive/internal fields are stripped by the User model's toJSON method.
+const createHashedCode = () => {
+  const code = crypto.randomInt(100000, 1000000).toString();
+  const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+  return { code, hashedCode };
+};
+
+const assignEmailVerificationCode = (user) => {
+  const { code, hashedCode } = createHashedCode();
+  user.emailVerificationCode = hashedCode;
+  user.emailVerificationExpires = new Date(
+    Date.now() + VERIFICATION_CODE_EXPIRES_MS
+  );
+  return code;
+};
+
+const assignPasswordResetCode = (user) => {
+  const { code, hashedCode } = createHashedCode();
+  user.passwordResetCode = hashedCode;
+  user.passwordResetCodeExpires = new Date(
+    Date.now() + VERIFICATION_CODE_EXPIRES_MS
+  );
+  user.passwordResetVerified = false;
+  return code;
+};
+
+const changedPasswordAfter = (user, jwtTimestamp) => {
+  if (!user.passwordChangedAt) return false;
+  return jwtTimestamp < Math.floor(user.passwordChangedAt.getTime() / 1000);
+};
+
+const signToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
+
+const createSendToken = (user, statusCode, res) => {
   res.status(statusCode).json({
     status: "success",
-    token,
-    data: {
-      user,
-    },
+    token: signToken(user.id),
+    data: { user },
   });
 };
 
 exports.signup = catchAsync(async (req, res, next) => {
+  const { firstName, lastName, email, password, confirmPassword } = req.body;
+  validatePassword(password, confirmPassword);
+
   const newUser = await User.create({
-    firstName: req.body.firstName,
-    lastName: req.body.lastName,
-    email: req.body.email,
-    password: req.body.password,
-    confirmPassword: req.body.confirmPassword,
+    firstName,
+    lastName,
+    email,
+    password: await hashPassword(password),
   });
 
-  // Generate and send the email verification code
-  const verificationCode = newUser.createEmailVerificationCode();
+  const verificationCode = assignEmailVerificationCode(newUser);
   await newUser.save();
 
   try {
-    const subject = ACCOUNT_VERIFICATION_SUBJECT;
     const htmlContent = EmailVerificationTemplate(newUser, verificationCode);
-
-    await sendEmail(newUser.email, newUser.firstName, subject, htmlContent);
+    await sendEmail(
+      newUser.email,
+      newUser.firstName,
+      ACCOUNT_VERIFICATION_SUBJECT,
+      htmlContent
+    );
   } catch (error) {
     newUser.emailVerificationCode = null;
     newUser.emailVerificationExpires = null;
@@ -78,31 +144,22 @@ exports.signup = catchAsync(async (req, res, next) => {
   res.status(201).json({
     status: "success",
     message: "Verification code sent to email!",
-    data: {
-      user: newUser,
-    },
+    data: { user: newUser },
   });
 });
 
-// Handles both signup email verification and forgot-password OTP verification
 exports.verifyCode = catchAsync(async (req, res, next) => {
   const { email, code } = req.body;
-
-  // 1) Check if email and code are provided
   if (!email || !code) {
     return next(
       new AppError("Please provide email and verification code", 400)
     );
   }
 
-  // 2) Check if a user exists with that email
   const user = await User.scope("withVerificationFields").findOne({
     where: { email: normalizeEmail(email) },
   });
-  if (!user) {
-    return next(new AppError("No account found with that email", 404));
-  }
-
+  if (!user) return next(new AppError("No account found with that email", 404));
   if (rejectInactiveAccount(user, next)) return;
 
   const hashedCode = crypto
@@ -110,7 +167,6 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     .update(String(code))
     .digest("hex");
 
-  // 3) Try matching a signup email-verification code first
   if (
     user.emailVerificationCode === hashedCode &&
     user.emailVerificationExpires &&
@@ -128,7 +184,6 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 4) Otherwise, try matching a forgot-password OTP
   if (
     user.passwordResetCode === hashedCode &&
     user.passwordResetCodeExpires &&
@@ -137,7 +192,9 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     user.passwordResetVerified = true;
     user.passwordResetCode = null;
     user.passwordResetCodeExpires = null;
-    user.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.passwordResetExpires = new Date(
+      Date.now() + VERIFICATION_CODE_EXPIRES_MS
+    );
     await user.save();
 
     return res.status(200).json({
@@ -146,34 +203,21 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 5) Neither code matched
   return next(new AppError("Verification code is invalid or has expired", 400));
 });
 
 exports.resendVerificationCode = catchAsync(async (req, res, next) => {
   const { email } = req.body;
+  if (!email) return next(new AppError("Please provide email", 400));
 
-  // 1) Check if email is provided
-  if (!email) {
-    return next(new AppError("Please provide email", 400));
-  }
-
-  // 2) Check if a user exists with that email
   const user = await User.scope("withVerificationFields").findOne({
     where: { email: normalizeEmail(email) },
   });
-  if (!user) {
-    return next(new AppError("No account found with that email", 404));
-  }
-
+  if (!user) return next(new AppError("No account found with that email", 404));
   if (rejectInactiveAccount(user, next)) return;
-
-  // 3) Already verified users don't need a new code
   if (user.isEmailVerified) {
     return next(new AppError("This email is already verified", 400));
   }
-
-  // 4) Only issue a new code once the previous one has expired
   if (
     user.emailVerificationExpires &&
     user.emailVerificationExpires > Date.now()
@@ -181,20 +225,21 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
     return next(new AppError("A verification code was already sent", 400));
   }
 
-  // 5) Generate and send a new verification code
-  const verificationCode = user.createEmailVerificationCode();
+  const verificationCode = assignEmailVerificationCode(user);
   await user.save();
 
   try {
-    const subject = ACCOUNT_VERIFICATION_SUBJECT;
     const htmlContent = EmailVerificationTemplate(user, verificationCode);
-
-    await sendEmail(user.email, user.firstName, subject, htmlContent);
+    await sendEmail(
+      user.email,
+      user.firstName,
+      ACCOUNT_VERIFICATION_SUBJECT,
+      htmlContent
+    );
   } catch (error) {
     user.emailVerificationCode = null;
     user.emailVerificationExpires = null;
     await user.save();
-
     return next(
       new AppError(
         "There was an error sending the verification email. Try again later!",
@@ -211,48 +256,31 @@ exports.resendVerificationCode = catchAsync(async (req, res, next) => {
 
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
-
-  // 1) Check if email and password exist
   if (!email || !password) {
     return next(new AppError("Please provide email and password", 400));
   }
 
-  // 2) Check if user exists && password is correct
   const user = await User.scope("withPassword").findOne({
     where: { email: normalizeEmail(email) },
   });
-
-  if (!user || !(await user.correctPassword(password))) {
+  if (!user || !(await bcrypt.compare(password, user.password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
+  if (!user.status) return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
 
-  // 3) Check if the account is active
-  if (!user.status) {
-    return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
-  }
-
-  // 4) If everything ok, send token to client
   createSendToken(user, 200, res);
 });
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  // 1) Check if email exists
   const { email } = req.body;
-  if (!email) {
-    return next(new AppError("Please provide email", 400));
-  }
+  if (!email) return next(new AppError("Please provide email", 400));
 
-  // 2) Check if user exists
   const user = await User.scope("withVerificationFields").findOne({
     where: { email: normalizeEmail(email) },
   });
-  if (!user) {
-    return next(new AppError("No account found with that email", 404));
-  }
-
+  if (!user) return next(new AppError("No account found with that email", 404));
   if (rejectInactiveAccount(user, next)) return;
 
-  // 3) If a previously sent code hasn't expired yet, don't generate a new one
   if (user.passwordResetCode && user.passwordResetCodeExpires > Date.now()) {
     return res.status(200).json({
       status: "success",
@@ -260,18 +288,19 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 4) Generate and send a 6-digit OTP
-  const resetCode = user.createPasswordResetCode();
-  user.passwordResetVerified = false;
+  const resetCode = assignPasswordResetCode(user);
   await user.save();
 
   try {
-    const subject = PASSWORD_RESET_SUBJECT;
     const htmlContent = EmailVerificationTemplate(user, resetCode, {
       purpose: "password-reset",
     });
-
-    await sendEmail(user.email, user.firstName, subject, htmlContent);
+    await sendEmail(
+      user.email,
+      user.firstName,
+      PASSWORD_RESET_SUBJECT,
+      htmlContent
+    );
 
     res.status(200).json({
       status: "success",
@@ -281,7 +310,6 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     user.passwordResetCode = null;
     user.passwordResetCodeExpires = null;
     await user.save();
-
     return next(
       new AppError(
         "There was an error sending the email. Try again later!",
@@ -293,32 +321,18 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
   const { email, password, confirmPassword } = req.body;
-
-  // 1) Check if email, password and confirm password are provided
   if (!email || !password || !confirmPassword) {
     return next(
       new AppError("Please provide email, password and confirm password", 400)
     );
   }
+  validatePassword(password, confirmPassword);
 
-  // 2) Check password and confirm password match
-  if (password !== confirmPassword) {
-    return next(
-      new AppError("Password and confirm password do not match", 400)
-    );
-  }
-
-  // 3) Check if a user exists with that email
   const user = await User.scope("withVerificationFields").findOne({
     where: { email: normalizeEmail(email) },
   });
-  if (!user) {
-    return next(new AppError("No account found with that email", 404));
-  }
-
+  if (!user) return next(new AppError("No account found with that email", 404));
   if (rejectInactiveAccount(user, next)) return;
-
-  // 4) Check the code was verified and the window hasn't expired
   if (
     !user.passwordResetVerified ||
     !user.passwordResetExpires ||
@@ -329,9 +343,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 4) Update the password
-  user.password = password;
-  user.confirmPassword = confirmPassword;
+  user.password = await hashPassword(password);
+  user.passwordChangedAt = new Date(Date.now() - 1000);
   user.passwordResetVerified = false;
   user.passwordResetExpires = null;
   await user.save();
@@ -356,7 +369,6 @@ exports.restrictTo =
   };
 
 exports.protect = catchAsync(async (req, res, next) => {
-  // 1) Getting token and check of it's there
   let token;
   if (
     req.headers.authorization &&
@@ -364,48 +376,34 @@ exports.protect = catchAsync(async (req, res, next) => {
   ) {
     token = req.headers.authorization.split(" ")[1];
   }
-
   if (!token) {
     return next(
       new AppError("You are not logged in! Please log in to get access.", 401)
     );
   }
 
-  // 2) Verification token
-  const decode = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
-
-  // 3) Check if user still exists
-  const freshUser = await User.scope("withPassword").findByPk(decode.id);
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+  const freshUser = await User.scope("withPassword").findByPk(decoded.id);
   if (!freshUser) {
     return next(
-      new AppError(
-        "The user belonging to this token does no longer exist.",
-        401
-      )
+      new AppError("The user belonging to this token no longer exists.", 401)
     );
   }
-
-  // 4) Check if user changed password after the token was issued
-  if (freshUser.changePasswordAfter(decode.iat)) {
+  if (changedPasswordAfter(freshUser, decoded.iat)) {
     return next(
       new AppError("User recently changed password! Please log in again.", 401)
     );
   }
-
-  // 5) Check if the account is active
   if (!freshUser.status) {
     return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
   }
 
-  // GRANT ACCESS TO PROTECTED ROUTE
   req.user = freshUser;
   next();
 });
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
   const { currentPassword, newPassword, newConfirmPassword } = req.body;
-
-  // 1) Check if current password, new password and confirm password are provided
   if (!currentPassword || !newPassword || !newConfirmPassword) {
     return next(
       new AppError(
@@ -415,23 +413,17 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 2) Check if user exists && current password is correct
   const user = await User.scope("withPassword").findByPk(req.user.id);
-
-  if (!user || !(await user.correctPassword(currentPassword))) {
+  if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
     return next(new AppError("Current password is incorrect", 401));
   }
+  validatePassword(newPassword, newConfirmPassword, {
+    password: "New password",
+    confirmation: "confirm password",
+  });
 
-  // 3) Check new password and confirm password match
-  if (newPassword !== newConfirmPassword) {
-    return next(
-      new AppError("New password and confirm password do not match", 400)
-    );
-  }
-
-  // 4) If everything ok, update password
-  user.password = newPassword;
-  user.confirmPassword = newConfirmPassword;
+  user.password = await hashPassword(newPassword);
+  user.passwordChangedAt = new Date(Date.now() - 1000);
   await user.save();
 
   res.status(200).json({

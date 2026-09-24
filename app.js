@@ -1,13 +1,13 @@
-const express = require("express");
 const compression = require("compression");
 const cors = require("cors");
+const express = require("express");
 const helmet = require("helmet");
 const { sequelize } = require("./config/database");
 const httpLogger = require("./config/httpLogger");
-const AppError = require("./utils/appError");
-const globalErrorHandler = require("./utils/globalErrorHandler");
 const { apiLimiter } = require("./middlewares/rateLimiters");
 const userRouter = require("./routes/userRoutes");
+const AppError = require("./utils/appError");
+const globalErrorHandler = require("./utils/globalErrorHandler");
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "*")
   .split(",")

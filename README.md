@@ -1,8 +1,9 @@
 # DevsPark Backend
 
 Node.js and Express API backed by PostgreSQL through Sequelize. The project uses
-versioned database migrations, UUID primary keys, structured Pino logging, JWT
-authentication, and transactional email verification.
+CommonJS modules, Sequelize-managed schema synchronization, UUID primary keys,
+structured Pino logging, JWT authentication, and transactional email
+verification.
 
 ## Requirements
 
@@ -26,32 +27,20 @@ Do not commit `.env`; it is intentionally ignored by Git.
 
 ```bash
 npm install
-npm run db:migrate
 npm run dev
 ```
 
 The API defaults to `http://localhost:8000`. A database readiness endpoint is
 available at `GET /health`.
 
-## Database commands
+## Schema management
 
-```bash
-# Create the configured local database from the command line (optional)
-npm run db:create
+The application authenticates with PostgreSQL and runs
+`sequelize.sync({ alter: true })` during startup. Sequelize creates missing
+tables and aligns existing tables with the model definitions, following the
+same schema-management approach as the BidIndex backend.
 
-# Apply all pending schema migrations
-npm run db:migrate
-
-# Inspect migration state
-npm run db:migrate:status
-
-# Revert the most recent migration
-npm run db:migrate:undo
-```
-
-Schema synchronization is deliberately not run during application startup.
-Every schema change should be represented by a new migration so deployments are
-repeatable and reversible.
+Create the PostgreSQL database itself in pgAdmin before starting the API.
 
 ## Logging
 

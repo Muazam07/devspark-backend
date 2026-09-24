@@ -1,3 +1,5 @@
+require("dotenv").config({ quiet: true });
+
 const { Sequelize } = require("sequelize");
 const logger = require("./logger");
 
@@ -43,16 +45,32 @@ const sequelize = process.env.DATABASE_URL
       }
     );
 
-const connectDatabase = async () => {
-  await sequelize.authenticate();
-  logger.info(
-    {
-      database: sequelize.getDatabaseName(),
-      host: sequelize.config.host,
-      environment: process.env.NODE_ENV || "development",
-    },
-    "PostgreSQL connected successfully"
-  );
+const connectDatabase = async (maximumAttempts = 5) => {
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    try {
+      await sequelize.authenticate();
+      await sequelize.sync({ alter: true });
+
+      logger.info(
+        {
+          database: sequelize.getDatabaseName(),
+          host: sequelize.config.host,
+          environment: process.env.NODE_ENV || "development",
+        },
+        "PostgreSQL connected successfully"
+      );
+      return;
+    } catch (error) {
+      const remainingAttempts = maximumAttempts - attempt;
+      if (remainingAttempts === 0) throw error;
+
+      logger.warn(
+        { remainingAttempts },
+        "PostgreSQL connection failed and will be retried"
+      );
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
 };
 
 const closeDatabase = async () => {
@@ -60,4 +78,4 @@ const closeDatabase = async () => {
   logger.info("PostgreSQL connection closed");
 };
 
-module.exports = { sequelize, connectDatabase, closeDatabase };
+module.exports = { closeDatabase, connectDatabase, sequelize };

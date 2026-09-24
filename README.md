@@ -30,8 +30,9 @@ npm install
 npm run dev
 ```
 
-The development command starts the API with PM2 and watches the project for
-file changes, restarting the process automatically when needed.
+The development command starts the API with Nodemon and restarts it
+automatically when project files change. PM2 remains available separately with
+`npm run pm2` and uses the watch configuration in `ecosystem.config.js`.
 
 The API defaults to `http://localhost:8000`. A database readiness endpoint is
 available at `GET /health`.

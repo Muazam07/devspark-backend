@@ -4,6 +4,7 @@ const logger = require("./logger");
 
 module.exports = pinoHttp({
   logger,
+  customAttributeKeys: { reqId: "requestId" },
   genReqId(req, res) {
     const requestId = req.headers["x-request-id"] || crypto.randomUUID();
     res.setHeader("x-request-id", requestId);

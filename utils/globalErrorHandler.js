@@ -50,11 +50,11 @@ module.exports = (error, req, res, next) => {
   const statusCode = normalizedError.statusCode || 500;
   const status = normalizedError.status || "error";
 
-  if (!normalizedError.isOperational) {
-    (req.log || logger).error(
-      { err: error, requestId: req.id },
-      "Unhandled request error"
-    );
+  const log = req.log || logger;
+  if (normalizedError.isOperational) {
+    log.debug({ err: error }, "Request rejected");
+  } else {
+    log.error({ err: error }, "Unhandled request error");
   }
 
   res.status(statusCode).json({

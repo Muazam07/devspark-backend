@@ -151,6 +151,14 @@ module.exports = (options) =>
       const lines = [`${icon} ${colors.bold(colorizeMessage(message))}`];
 
       if (context) lines.push(`   ${context}`);
+      if (log.err?.stack) {
+        const stackFrames = log.err.stack
+          .split("\n")
+          .filter((line) => line.trim().startsWith("at "))
+          .filter((line) => !/node_modules|\(node:|at node:/.test(line))
+          .map((line) => `     ${colors.dim(line.trim())}`);
+        lines.push(...stackFrames);
+      }
       lines.push(`   ${formatTimestamp(log.time)}`);
 
       return `${lines.join("\n")}\n`;

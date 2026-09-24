@@ -4,6 +4,7 @@ const express = require("express");
 const helmet = require("helmet");
 const { sequelize } = require("./config/database");
 const httpLogger = require("./config/httpLogger");
+const requestContext = require("./config/requestContext");
 const { apiLimiter } = require("./middlewares/rateLimiters");
 const userRouter = require("./routes/userRoutes");
 const AppError = require("./utils/appError");
@@ -38,6 +39,7 @@ if (process.env.TRUST_PROXY) {
 }
 
 app.use(httpLogger);
+app.use(requestContext.middleware);
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(compression());

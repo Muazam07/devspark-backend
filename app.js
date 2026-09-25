@@ -63,7 +63,7 @@ app.get("/health", async (req, res) => {
     res.status(503).json({
       status: "error",
       message: "The service is temporarily unavailable.",
-      requestId: req.id,
+      ...(process.env.NODE_ENV !== "production" && { requestId: req.id }),
     });
   }
 });

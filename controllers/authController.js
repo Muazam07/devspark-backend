@@ -6,7 +6,6 @@ const {
   ACCOUNT_VERIFICATION_SUBJECT,
   PASSWORD_RESET_SUBJECT,
   INACTIVE_ACCOUNT_MESSAGE,
-  UNVERIFIED_ACCOUNT_MESSAGE,
   VERIFICATION_CODE_EXPIRES_MS,
   PASSWORD_HASH_ROUNDS,
 } = require("../enums/userEnum");
@@ -104,6 +103,15 @@ const createSendToken = (user, statusCode, res) => {
     status: "success",
     token: signToken(user.id),
     data: { user },
+  });
+};
+
+const sendUnverifiedLoginResponse = (req, res, message) => {
+  res.status(200).json({
+    status: "fail",
+    message,
+    isEmailVerified: false,
+    ...(process.env.NODE_ENV !== "production" && { requestId: req.id }),
   });
 };
 
@@ -269,11 +277,52 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
+  if (!user.isEmailVerified) {
+    if (
+      user.emailVerificationCode &&
+      user.emailVerificationExpires &&
+      user.emailVerificationExpires > Date.now()
+    ) {
+      return sendUnverifiedLoginResponse(
+        req,
+        res,
+        "OTP code already sent to your email."
+      );
+    }
+
+    const verificationCode = assignEmailVerificationCode(user);
+    await user.save();
+
+    try {
+      const htmlContent = EmailVerificationTemplate(user, verificationCode);
+      await sendEmail(
+        user.email,
+        user.firstName,
+        ACCOUNT_VERIFICATION_SUBJECT,
+        htmlContent,
+        "Verification email"
+      );
+    } catch (error) {
+      user.emailVerificationCode = null;
+      user.emailVerificationExpires = null;
+      await user.save();
+
+      return next(
+        new AppError(
+          "There was an error sending the verification email. Try again later!",
+          500
+        )
+      );
+    }
+
+    return sendUnverifiedLoginResponse(
+      req,
+      res,
+      "OTP code sent to your email."
+    );
+  }
   if (!user.status) {
-    const message = user.isEmailVerified
-      ? INACTIVE_ACCOUNT_MESSAGE
-      : UNVERIFIED_ACCOUNT_MESSAGE;
-    return next(new AppError(message, 403));
+    return next(new AppError(INACTIVE_ACCOUNT_MESSAGE, 403));
   }
 
   createSendToken(user, 200, res);

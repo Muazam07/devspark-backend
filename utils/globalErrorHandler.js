@@ -63,6 +63,6 @@ module.exports = (error, req, res, next) => {
     message: normalizedError.isOperational
       ? normalizedError.message
       : "Something went wrong. Please try again later.",
-    requestId: req.id,
+    ...(process.env.NODE_ENV !== "production" && { requestId: req.id }),
   });
 };

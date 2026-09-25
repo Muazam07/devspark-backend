@@ -7,7 +7,9 @@ module.exports = pinoHttp({
   customAttributeKeys: { reqId: "requestId" },
   genReqId(req, res) {
     const requestId = req.headers["x-request-id"] || crypto.randomUUID();
-    res.setHeader("x-request-id", requestId);
+    if (process.env.NODE_ENV !== "production") {
+      res.setHeader("x-request-id", requestId);
+    }
     return requestId;
   },
   customLogLevel(req, res) {

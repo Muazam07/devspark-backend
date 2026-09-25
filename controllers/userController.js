@@ -1,4 +1,3 @@
-const { Op } = require("sequelize");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const userFilters = require("../filters/userFilters");
@@ -6,10 +5,7 @@ const paginate = require("../utils/paginate");
 const User = require("../models/userModel");
 
 exports.getAllUsers = catchAsync(async (req, res) => {
-  const where = {
-    ...userFilters(req.query),
-    id: { [Op.ne]: req.user.id },
-  };
+  const where = userFilters(req.query);
   const { documents: users, pagination } = await paginate({
     model: User,
     where,
@@ -51,6 +47,12 @@ exports.updateUser = catchAsync(async (req, res, next) => {
 
 exports.updateUserStatus = catchAsync(async (req, res, next) => {
   const { status } = req.body;
+
+  if (req.params.id === req.user.id) {
+    return next(
+      new AppError("You cannot change your own account status.", 403)
+    );
+  }
 
   if (typeof status !== "boolean") {
     return next(new AppError("Please provide a valid status", 400));
